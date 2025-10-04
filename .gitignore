@@ -1,0 +1,39 @@
+# LaTeX intermediate files
+*.aux
+*.log
+*.out
+*.fdb_latexmk
+*.fls
+*.toc
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.lof
+*.lot
+*.idx
+*.ilg
+*.tex.backup
+
+# latexmk output dir
+outdir/
+
+# PDF and other generated artifacts (optional - keep if you want to version PDFs)
+# *.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code workspace settings and local history
+.vscode/
+
+# Temporary files
+*~
+*.tmp
+
+# Node / npm
+node_modules/
+
+# GitHub Codespaces workspace
+.devcontainer/

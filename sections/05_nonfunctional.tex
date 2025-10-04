@@ -1,0 +1,35 @@
+\subsection{Performance Requirements}
+\begin{enumerate}[label=NFR\arabic*:, leftmargin=2.5cm]
+  \item Concurrent Users: The system shall handle at least \textbf{1000 concurrent users} without degradation, verified by load testing.
+  \item Response Time: 95\% of key actions (login, enrollment, course access, page load) shall complete within \textbf{3 seconds} under normal load.
+  \item Real-Time Notifications: Notifications (reminders, announcements, deadlines) shall be delivered within \textbf{2 seconds} of the triggering event in 95\% of cases.
+\end{enumerate}
+
+\subsection{Security \& Reliability Requirements}
+\begin{enumerate}[label=NFR\arabic*:, start=4, leftmargin=2.5cm]
+  \item Data Encryption: All personal and academic data shall be encrypted at rest with \textbf{AES-256} and in transit with \textbf{TLS 1.2 or higher}.
+  \item Access Control \& Logging: 100\% of authentication and access attempts shall be logged and retained for at least \textbf{90 days}.
+  \item Uptime: The system shall provide at least \textbf{99\% uptime} during the academic year (excluding scheduled maintenance), monitored monthly.
+  \item Data Integrity: Recovery testing shall confirm \textbf{zero data loss} during transient failures; operations shall be idempotent.
+\end{enumerate}
+
+\subsection{Usability \& Accessibility Requirements}
+\begin{enumerate}[label=NFR\arabic*:, start=8, leftmargin=2.5cm]
+  \item User Interface: Usability testing (System Usability Scale) shall achieve a score of at least \textbf{80/100}.
+  \item Task Simplicity: Key workflows (course enrollment, submission, reschedule) shall require \textbf{no more than 3 steps}.
+  \item Multi-Platform Support: The system shall function correctly on at least \textbf{3 major browsers} (Chrome, Firefox, Edge) and on \textbf{desktop, tablet, and smartphone}.
+  \item Accessibility Standards: The system shall meet \textbf{WCAG 2.1 AA} accessibility compliance.
+\end{enumerate}
+
+\subsection{Software Quality Attributes}
+\begin{enumerate}[label=NFR\arabic*:, start=12, leftmargin=2.5cm]
+  \item Scalability: The system shall support a \textbf{50\% increase in users} beyond baseline load without major reconfiguration.
+  \item Maintainability: The codebase shall achieve at least \textbf{80\% unit test coverage} and pass linting with no critical errors.
+  \item Extensibility: Adding a new feature (e.g., adaptive learning, AI tutor matching) shall require no more than \textbf{2 person-weeks} of integration effort.
+  \item Observability: The system shall provide logs covering \textbf{100\% of authentication and enrollment events} and collect usage metrics (active users, completed courses) with \textbf{5-minute granularity}.
+\end{enumerate}
+
+\subsection{Business Rules}
+\begin{enumerate}[label=NFR\arabic*:, start=16, leftmargin=2.5cm]
+  \item Legal Compliance: The system shall comply with Vietnamese data protection laws and pass an annual \textbf{compliance audit with zero critical findings}.
+\end{enumerate}
