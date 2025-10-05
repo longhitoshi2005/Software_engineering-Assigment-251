@@ -47,12 +47,12 @@
 \end{itemize} \\ 
 \hline
 \textbf{Alternative Flows} & 
-\begin{itemize}
-    \item[AF1] \textbf{Multiple Session Feedback:} If multiple sessions are pending, the system displays a list and allows the student to submit feedback sequentially.
-    \item[AF2] \textbf{Draft Save/Connection Loss:} The student may save incomplete feedback as a draft and return later. System automatically saves the draft if connection is lost before final submission.
-    \item[AF3] \textbf{Feedback Revision:} Within a defined grace period (e.g., 24h), the student may edit and resubmit feedback; the updated version replaces the original.
-    \item[AF4] \textbf{Skipped Feedback:} If no feedback is submitted within the allowed time, the Scheduler triggers a process to mark the session's feedback status as ``Skipped.'' 
-\end{itemize} \\ 
+\begin{enumerate}
+    \item \textbf{Multiple Session Feedback:} If multiple sessions are pending, the system displays a list and allows the student to submit feedback sequentially.
+    \item \textbf{Draft Save/Connection Loss:} The student may save incomplete feedback as a draft and return later. System automatically saves the draft if connection is lost before final submission.
+    \item \textbf{Feedback Revision:} Within a defined grace period (e.g., 24h), the student may edit and resubmit feedback; the updated version replaces the original.
+    \item \textbf{Skipped Feedback:} If no feedback is submitted within the allowed time, the Scheduler triggers a process to mark the session's feedback status as ``Skipped.'' 
+\end{enumerate} \\ 
 \hline
 \textbf{Exception Flows} & 
 \begin{itemize}
@@ -64,54 +64,45 @@
 \end{longtable}
 \end{center}
 
-\begin{table}[H]
+\begin{table}[h!]
 \centering
-\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{|p{3cm}|p{11cm}|}
 \hline
-\textbf{Use-case ID} & UC-04b \\ 
+\textbf{Use-case ID} & UC-04b \\
 \hline
-\textbf{Use-case name} & Record Student Progress \\ 
+\textbf{Use-case name} & Record Student Progress \\
 \hline
-\textbf{Overview} & To allow a tutor to record a student’s progress and optionally add a session summary for reference and tracking. \\ 
+\textbf{Use-case overview} & To allow tutors to record student progress and optionally add session summaries for reference and tracking purposes. \\
 \hline
-\textbf{Actors} & Tutor \\ 
+\textbf{Actors} & Tutor \\
 \hline
 \textbf{Preconditions} & 
-\begin{enumerate}
-    \item A tutoring session has been completed.
-    \item The system is running and accessible.
-    \item Tutor is authenticated in the system.
-\end{enumerate} \\ 
+1. A tutoring session has been completed. \newline
+2. The system is running and accessible. \newline
+3. Tutor is authenticated in the system. \\
 \hline
-\textbf{Trigger} & Tutor accesses the session record and selects ``Record Progress.'' \\ 
+\textbf{Trigger} & Tutor accesses the session record and selects “Record Progress.” \\
 \hline
-\textbf{Main Flow (Steps)} & 
-\begin{enumerate}
-    \item Tutor accesses and opens the specific session record.
-    \item Tutor enters progress notes and, optionally, a session summary.
-    \item Tutor submits the record.
-    \item System validates input and saves the record, linking it to the session.
-\end{enumerate} \\ 
+\textbf{Steps} & 
+1. Tutor opens the specific session record. \newline
+2. Tutor enters progress notes and, optionally, a session summary. \newline
+3. Tutor submits the record. \newline
+4. System validates the input and saves the record, linking it to the session. \\
 \hline
 \textbf{Postconditions} & 
-\begin{itemize}
-    \item Student progress and optional session summary are saved.
-    \item Data is linked to the session and available for departmental review.
-\end{itemize} \\ 
+1. Student progress and optional session summary are saved. \newline
+2. Data is linked to the session and available for departmental review. \\
 \hline
 \textbf{Alternative Flows} & 
-\begin{itemize}
-    \item[AF1] \textbf{Optional Summary:} Tutor skips writing a session summary (only progress notes saved).
-    \item[AF2] \textbf{Draft Save/Connection Loss:} The tutor may save incomplete notes as a draft and return later. System automatically saves the draft if connection is lost before final submission.
-    \item[AF3] \textbf{Note Revision:} Within a defined grace period (e.g., 24h), the tutor may edit and resubmit notes; the updated version replaces the original.
-\end{itemize} \\ 
+A1: Optional Summary → Tutor skips writing a session summary (only progress notes are saved). \newline
+A2: Draft Save / Connection Loss → Tutor may save incomplete notes as a draft; the system auto-saves the draft if the connection is lost. \newline
+A3: Note Revision → Within a 24-hour grace period, tutor may edit and resubmit notes; the new version replaces the previous record. \\
 \hline
-\textbf{Exception Flows} & 
-\begin{itemize}
-    \item \textbf{Database Error:} If the system fails to save the record due to a database error, it logs the error and notifies the tutor to retry.
-    \item \textbf{Missing/Locked Session:} If the session record is missing or locked by another process, the system notifies the tutor and logs the error.
-\end{itemize} \\ 
+\textbf{Exception Flow} & 
+1. Database error → System logs the issue and notifies the tutor to retry. \newline
+2. Missing or locked session → System notifies the tutor and logs the error. \\
+\hline
+\textbf{Priority} & Should \\
 \hline
 \end{tabular}
 \caption{Use Case UC-04b: Record Student Progress}
