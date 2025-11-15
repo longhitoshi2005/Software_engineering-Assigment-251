@@ -11,7 +11,7 @@ const TEST_ACCOUNTS: Record<string, { password: string; role: Role; redirect: st
   "student@hcmut.edu.vn": { password: "student", role: Role.STUDENT, redirect: "/student/dashboard" },
   "tutor@hcmut.edu.vn": { password: "tutor", role: Role.TUTOR, redirect: "/tutor/dashboard" },
   "coord@hcmut.edu.vn": { password: "coord", role: Role.COORDINATOR, redirect: "/coord/dashboard" },
-  "dept@hcmut.edu.vn": { password: "dept", role: Role.DEPARTMENT_CHAIR, redirect: "/dept/report-dept" },
+  "dept@hcmut.edu.vn": { password: "dept", role: Role.DEPARTMENT_CHAIR, redirect: "/dept" },
   "sa@hcmut.edu.vn": { password: "sa", role: Role.STUDENT_AFFAIRS, redirect: "/sa/dashboard" },
   "admin@hcmut.edu.vn": { password: "admin", role: Role.PROGRAM_ADMIN, redirect: "/admin/dashboard" },
 };
