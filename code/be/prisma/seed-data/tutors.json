@@ -1,0 +1,34 @@
+[
+  {
+    "userEmail": "tutor@hcmut.edu.vn",
+    "tutorId": "tutor",
+    "profileSummary": "Primary sample tutor",
+    "status": "AVAILABLE",
+    "expertise": ["Pointers", "Recursion", "C++"],
+    "workload": { "current": 2, "max": 10 }
+  },
+  {
+    "userEmail": "studenttutor@hcmut.edu.vn",
+    "tutorId": "studenttutor",
+    "profileSummary": "Student who also tutors",
+    "status": "AT_CAPACITY",
+    "expertise": ["Data Structures", "Algorithms"],
+    "workload": { "current": 8, "max": 8 }
+  },
+  {
+    "userEmail": "tutor_admin@hcmut.edu.vn",
+    "tutorId": "tutor_admin",
+    "profileSummary": "Tutor who is also an admin",
+    "status": "AVAILABLE",
+    "expertise": ["Calculus I", "Calculus II"],
+    "workload": { "current": 1, "max": 10 }
+  },
+  {
+    "userEmail": "multi_role@hcmut.edu.vn",
+    "tutorId": "multi_role",
+    "profileSummary": "Multi-role user including tutor",
+    "status": "AT_CAPACITY",
+    "expertise": ["Physics", "Digital Systems"],
+    "workload": { "current": 10, "max": 10 }
+  }
+]

@@ -1,0 +1,17 @@
+export enum Faculty {
+  ME = 'Faculty of Mechanical Engineering',
+  MT = 'Faculty of Material Technology',
+  EEE = 'Faculty of Electrical and Electronics Engineering',
+  AS = 'Faculty of Applied Science',
+  CSE = 'Faculty of Computer Science and Engineering',
+  GPE = 'Faculty of Geology and Petroleum Engineering',
+  TE = 'Faculty of Transportation Engineering',
+  CE = 'Faculty of Chemical Engineering',
+  CiE = 'Faculty of Civil Engineering',
+  ENR = 'Faculty of Environment and Natural Resources',
+  IM = 'Faculty of Industrial Management',
+  ISP = 'Office of International Study Programs',
+  HRDTC = 'Human Resource Development and Training Center',
+  IMTC = 'Industrial Maintenance Training Center',
+  FLC = 'Foreign Language Center',
+}
