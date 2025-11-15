@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { hasRole, Role } from '@/app/lib/role';
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
+import { hasRole, Role } from '@/src/lib/role';
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
 
 const WorkloadReports: React.FC = () => {
   const [period, setPeriod] = useState("monthly");
@@ -15,7 +15,7 @@ const WorkloadReports: React.FC = () => {
   ], []);
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.DepartmentChair, Role.ProgramAdmin]} title="Workload reports (DepartmentChair only)">
+    <ClientRoleGuard allowedRoles={[Role.DEPARTMENT_CHAIR, Role.PROGRAM_ADMIN]} title="Workload reports (DepartmentChair only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Workload reports</h1>
@@ -34,7 +34,7 @@ const WorkloadReports: React.FC = () => {
             <option value="quarterly">This quarter</option>
           </select>
 
-          {hasRole(Role.Coordinator, Role.ProgramAdmin) ? (
+          {hasRole(Role.COORDINATOR, Role.PROGRAM_ADMIN) ? (
             <button onClick={() => import('@/app/admin/actions').then(m => m.exportWorkload())} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
               Export report
             </button>

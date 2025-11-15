@@ -2,33 +2,12 @@
 
 import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { CONFLICTS } from '@/app/lib/mocks';
-
-type SessionRequest = {
-  id: string;
-  studentName: string;
-  course: string;
-  preferredSlot: string;
-  status: string;
-};
-
-type Conflict = {
-  id: string;
-  type: "SLOT_CONFLICT";
-  slot: string;
-  details: string;
-  severity: "HIGH" | "MEDIUM" | "LOW";
-  requests: SessionRequest[];
-};
+import { CONFLICTS, type Conflict, type ConflictRequest } from '@/src/lib/mocks';
 
 const CoordConflicts: React.FC = () => {
   const router = useRouter();
-
-  // Use centralized conflicts mock (cast to local Conflict shape). Provide fallback to [] during SSR.
-  const conflicts = useMemo(
-    () => ((typeof CONFLICTS !== "undefined" && Array.isArray(CONFLICTS) ? (CONFLICTS as unknown as Conflict[]) : []) as Conflict[]),
-    []
-  );
+  // Use centralized conflicts mock with proper typing
+  const conflicts = useMemo<Conflict[]>(() => CONFLICTS, []);
 
   const severityColor = (s: Conflict["severity"]) => {
     switch (s) {
@@ -41,9 +20,14 @@ const CoordConflicts: React.FC = () => {
     }
   };
 
-  const resolveConflict = (reqId: string) => {
-    // Navigate to manual match page
-    router.push(`/coord/manual-match?req=${reqId}`);
+  const resolveConflict = (request: ConflictRequest, conflict: Conflict) => {
+    // Navigate to manual match page with studentId and the conflicted tutor id
+    const studentId = request.studentId ?? "";
+    const conflictedTutorId = conflict.tutor ? conflict.tutor.id : "";
+
+    router.push(
+      `/coord/manual-match?studentId=${encodeURIComponent(studentId)}&suggestedTutorId=${encodeURIComponent(conflictedTutorId)}`
+    );
   };
 
   return (
@@ -83,45 +67,64 @@ const CoordConflicts: React.FC = () => {
             </p>
           ) : (
             conflicts.map((cf) => (
-              <article
-                key={cf.id}
-                className="bg-white rounded-lg border border-black/5 p-4 flex flex-col md:flex-row md:justify-between gap-3"
-              >
-                <div className="space-y-2 flex-1">
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <h2 className="text-sm font-semibold text-dark-blue">
-                      Scheduling conflict
+              /* New, clearer article structure */
+              <article key={cf.id} className="bg-white rounded-lg border border-black/5 p-4">
+
+                {/* Card Header */}
+                <div className="flex gap-3 items-center justify-between">
+                  <div className="flex gap-3 items-center">
+                    <h2 className="text-base font-semibold text-dark-blue">
+                      {cf.type === 'TUTOR_DOUBLE_BOOKING' ? 'Tutor Double Booking' : 'Room Conflict'}
                     </h2>
                     <span
-                      className={`text-[0.6rem] px-2 py-0.5 rounded-full border ${severityColor(
+                      className={`text-xs px-2 py-0.5 rounded-full border font-medium ${severityColor(
                         cf.severity
                       )}`}
                     >
                       {cf.severity}
                     </span>
                   </div>
-                  <p className="text-xs text-black/60">
-                    Slot / resource: <b>{cf.slot}</b>
-                  </p>
-                  <p className="text-xs text-black/50 bg-soft-white-blue/60 rounded-md p-2">
-                    {cf.details}
-                  </p>
-                  <div className="mt-2 space-y-1">
-                    {(cf.requests ?? []).map((r) => (
-                      <div key={r.id} className="text-xs text-black/70 flex gap-2 justify-between items-center border-t border-black/5 pt-1">
-                        <span>{r.id} · {r.studentName} · {r.course} · Status: {r.status}</span>
+                  <p className="text-xs text-black/40">ID: {cf.id}</p>
+                </div>
+
+                {/* Conflicted Resource Details */}
+                <div className="grid grid-cols-2 gap-4 bg-soft-white-blue/60 p-3 rounded-md my-3">
+                  <div>
+                    <p className="text-xs font-semibold text-black/60">Conflicted Tutor</p>
+                    <p className="text-sm font-medium text-dark-blue">{cf.tutor?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-black/60">Resource / Slot</p>
+                    <p className="text-sm font-medium text-dark-blue">{cf.slot}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-black/60">Details</p>
+                    <p className="text-sm text-black/70">{cf.details}</p>
+                  </div>
+                </div>
+
+                {/* Affected Students List */}
+                <div>
+                  <h3 className="text-sm font-semibold text-dark-blue mb-2">Affected Requests</h3>
+                  <ul className="space-y-2">
+                    {(cf.requests ?? []).map((r: ConflictRequest) => (
+                      <li
+                        key={r.id}
+                        className="flex gap-2 justify-between items-center border-b border-black/5 pb-2 last:border-b-0"
+                      >
+                        <div>
+                          <p className="text-sm text-black/80 font-medium">{r.studentName} ({r.studentId})</p>
+                          <p className="text-xs text-black/60">Request ID: {r.id} · Course: {r.course} · Status: {r.status}</p>
+                        </div>
                         <button
-                          onClick={() => resolveConflict(r.id)}
-                          className="text-[0.65rem] text-light-heavy-blue hover:underline"
+                          onClick={() => resolveConflict(r, cf)}
+                          className="text-sm font-medium text-light-heavy-blue hover:underline whitespace-nowrap border rounded-lg p-1"
                         >
                           Resolve →
                         </button>
-                      </div>
+                      </li>
                     ))}
-                  </div>
-                  <p className="text-[0.6rem] text-black/40">
-                    Auto-detected from session store by same course + slot
-                  </p>
+                  </ul>
                 </div>
               </article>
             ))

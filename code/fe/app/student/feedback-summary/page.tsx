@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
-import { swalError } from "@/app/lib/swal";
+import { swalError } from "@/src/lib/swal";
 
 type FeedbackItem = {
   id: string;

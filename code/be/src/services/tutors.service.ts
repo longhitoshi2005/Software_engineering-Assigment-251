@@ -1,73 +1,38 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { Tutor, TutorDocument } from '../schemas';
-import { UsersService } from '../services';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { TUTORS } from '../mocks/data.mock';
 
 @Injectable()
 export class TutorsService {
-  constructor(
-    @InjectModel(Tutor.name) private tutorModel: Model<TutorDocument>,
-    private readonly usersService: UsersService,
-  ) {}
-
-  /**
-   * Tạo profile tutor cho 1 user đã tồn tại
-   */
-  async createForUser(userId: string, payload: {
-    subjects?: string[];
-    courseCodes?: string[];
-    bio?: string;
-  }) {
-    const user = await this.usersService.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const existed = await this.tutorModel.findOne({ user: user._id });
-    if (existed) {
-      throw new BadRequestException('Tutor profile already exists for this user');
-    }
-
-    const tutor = new this.tutorModel({
-      user: user._id,
-      subjects: payload.subjects ?? [],
-      courseCodes: payload.courseCodes ?? [],
-      bio: payload.bio ?? '',
-    });
-
-    return tutor.save();
-  }
-
   async findAll() {
-    return this.tutorModel
-      .find()
-      .populate('user') // để frontend hiện tên luôn
-      .lean();
-  }
-
-  async findByUserId(userId: string) {
-    return this.tutorModel
-      .findOne({ user: new Types.ObjectId(userId) })
-      .populate('user')
-      .lean();
-  }
-
-  async updateByUserId(userId: string, payload: Partial<Tutor>) {
-    const tutor = await this.tutorModel.findOneAndUpdate(
-      { user: new Types.ObjectId(userId) },
-      { $set: payload },
-      { new: true },
+    return Promise.resolve(
+      TUTORS.map((t) => ({
+        id: t.id,
+        fullName: t.fullName,
+        tutorId: t.tutorId,
+        eduMail: t.eduMail,
+        expertise: t.expertise,
+        currentLoad: t.currentLoad,
+        profileSummary: t.profileSummary,
+      })),
     );
-
-    if (!tutor) {
-      throw new NotFoundException('Tutor not found for this user');
-    }
-
-    return tutor;
   }
 
-  async deleteByUserId(userId: string) {
-    return this.tutorModel.findOneAndDelete({ user: new Types.ObjectId(userId) });
+  async findPublicList() {
+    return this.findAll();
+  }
+
+  async findById(id: string) {
+    const t = TUTORS.find((x) => x.id === id || x.tutorId === id);
+    if (!t) throw new NotFoundException('Tutor not found');
+    return Promise.resolve(t);
+  }
+
+  async getSchedule(tutorId: string) {
+    const t = TUTORS.find((x) => x.id === tutorId || x.tutorId === tutorId);
+    if (!t) throw new NotFoundException('Tutor not found');
+    return Promise.resolve({
+      availability: t.availability,
+      currentLoad: t.currentLoad,
+    });
   }
 }

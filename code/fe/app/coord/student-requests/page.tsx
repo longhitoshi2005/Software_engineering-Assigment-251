@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { hasRole, Role } from '@/app/lib/role';
+import { hasRole, Role } from '@/src/lib/role';
 import { useRouter } from "next/navigation";
 // ExportControl is defined below to avoid calling hasRole during SSR/hydration
 
@@ -16,9 +16,7 @@ type StudentSupportReq = {
   reasonAI?: string;
 };
 
-const CoordStudentRequests: React.FC = () => {
-  const router = useRouter();
-  const [reqs, setReqs] = useState<StudentSupportReq[]>([
+const mock_studentRequests: StudentSupportReq[] = [
     {
       id: "SR-2025-11-02-001",
       studentId: "2352525",
@@ -48,7 +46,11 @@ const CoordStudentRequests: React.FC = () => {
       status: "ROUTED",
       reasonAI: "Already sent to /coord/pending-assign",
     },
-  ]);
+  ]
+
+const CoordStudentRequests: React.FC = () => {
+  const router = useRouter();
+  const [reqs, setReqs] = useState<StudentSupportReq[]>(mock_studentRequests);
 
   const routeToAssign = (req: StudentSupportReq) => {
     // mock: xóa tại đây, rồi điều hướng sang pending-assign để giả vờ đang xử lý
@@ -201,7 +203,7 @@ function ExportControl() {
     return <div className="text-sm text-black/60">Exporting student requests is restricted to Coordinators or Program Admins.</div>;
   }
 
-  const canExport = hasRole(Role.Coordinator, Role.ProgramAdmin);
+  const canExport = hasRole(Role.COORDINATOR, Role.PROGRAM_ADMIN);
 
   return canExport ? (
     <button className="px-3 py-1.5 rounded-md bg-white text-dark-blue text-xs font-medium border border-black/10 hover:bg-soft-white-blue">

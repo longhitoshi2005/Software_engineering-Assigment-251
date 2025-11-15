@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { swalConfirm, swalSuccess } from "@/app/lib/swal";
+import { swalConfirm, swalSuccess } from "@/src/lib/swal";
 
 type TutorSlot = {
   time: string;

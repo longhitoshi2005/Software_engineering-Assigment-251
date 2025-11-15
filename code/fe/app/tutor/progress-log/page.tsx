@@ -10,7 +10,7 @@ type TutorSession = {
   topic: string;
   status: "completed" | "pending" | "in-progress";
 };
-import { TUTOR_SESSIONS } from "@/app/lib/mocks";
+import { TUTOR_SESSIONS } from "@/src/lib/mocks";
 
 const mockSessions: TutorSession[] = TUTOR_SESSIONS as TutorSession[];
 

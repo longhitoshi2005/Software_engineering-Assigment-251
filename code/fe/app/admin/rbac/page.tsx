@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
 import { addRole, editRole, deleteRole } from "@/app/admin/actions";
-import { hasRole, Role } from "@/app/lib/role";
-import { ROLES, PERMISSIONS, RoleDef } from '@/app/lib/mocks';
+import { hasRole, Role } from "@/src/lib/role";
+import { ROLES, PERMISSIONS, RoleDef } from '@/src/lib/mocks';
 
 const RBAC: React.FC = () => {
   const roles = useMemo<RoleDef[]>(() => ROLES, []);
   const permissions = PERMISSIONS;
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.ProgramAdmin]} title="Role management (Admin only)">
+    <ClientRoleGuard allowedRoles={[Role.PROGRAM_ADMIN]} title="Role management (Admin only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Role-based access control</h1>

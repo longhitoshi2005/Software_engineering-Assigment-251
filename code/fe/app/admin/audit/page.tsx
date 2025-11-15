@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { hasRole, Role } from '@/app/lib/role';
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { hasRole, Role } from '@/src/lib/role';
 
 interface AuditLog {
   time: string;
@@ -94,7 +94,7 @@ export default function AdminAuditLogsPage() {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.ProgramAdmin]} title="Audit logs (Admin only)">
+    <ClientRoleGuard allowedRoles={[Role.PROGRAM_ADMIN]} title="Audit logs (Admin only)">
       <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
         {/* Header */}
         <header>
@@ -140,7 +140,7 @@ export default function AdminAuditLogsPage() {
             </div>
 
             <div className="ml-4">
-              {hasRole(Role.ProgramAdmin) ? (
+              {hasRole(Role.PROGRAM_ADMIN) ? (
                 <button onClick={() => import('../actions').then(m => m.exportAudit())} className="px-3 py-1.5 rounded-md bg-light-heavy-blue text-white text-xs font-medium hover:bg-[#00539a]">Export</button>
               ) : (
                 <div className="text-sm text-black/60">Exporting audit logs is restricted to Program Admin.</div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { hasRole, Role } from '@/app/lib/role';
+import { hasRole, Role } from '@/src/lib/role';
 
 interface ExportJob {
   id: string;
@@ -95,7 +95,7 @@ export default function AdminExportsPage() {
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <h2 className="text-base font-semibold text-dark-blue mb-3">Create New Export</h2>
         <div className="flex flex-wrap gap-3">
-          {hasRole(Role.ProgramAdmin) && (
+          {hasRole(Role.PROGRAM_ADMIN) && (
             <button
               onClick={() => triggerExport("audit_csv")}
               className="px-4 py-2 bg-soft-white-blue border border-soft-white-blue rounded text-sm font-medium text-dark-blue hover:bg-blue-50 transition"
@@ -104,7 +104,7 @@ export default function AdminExportsPage() {
             </button>
           )}
 
-          {!hasRole(Role.ProgramAdmin) && (
+          {!hasRole(Role.PROGRAM_ADMIN) && (
             <div className="text-sm text-black/60">You do not have permission to create admin export jobs. Contact Program Admin.</div>
           )}
         </div>

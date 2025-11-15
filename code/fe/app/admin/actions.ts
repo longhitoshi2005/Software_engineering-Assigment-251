@@ -1,7 +1,7 @@
 "use client";
 
-import { swalConfirm, swalSuccess, swalFire, swalInfo } from "@/app/lib/swal";
-import { requestExport } from "@/app/lib/exports";
+import { swalConfirm, swalSuccess, swalFire, swalInfo } from "@/src/lib/swal";
+import { requestExport } from "@/src/lib/exports";
 
 export async function connectIntegration(id: number) {
   const ok = await swalConfirm("Connect integration?", `Connect integration #${id}?`);

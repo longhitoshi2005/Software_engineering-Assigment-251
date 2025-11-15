@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { hasRole, Role } from '@/app/lib/role';
-import { PENDING_ASSIGN_ITEMS } from '@/app/lib/mocks';
+import { hasRole, Role } from '@/src/lib/role';
+import { PENDING_ASSIGN_ITEMS } from '@/src/lib/mocks';
 
 type PendingMatch = {
   id: string;
@@ -23,18 +23,31 @@ const CoordPendingAssign: React.FC = () => {
 
   const [items, setItems] = useState<PendingMatch[]>(PENDING_ASSIGN_ITEMS);
 
-  const handleApprove = (id: string) => {
-    // Update status
-    setItems(prev => prev.filter(item => item.id !== id));
-  };
+  const handleReview = (pm: PendingMatch) => {
+    // Strict flow: always go through manual-match so coordinator must provide a reason.
+    try {
+      if (typeof window !== "undefined") {
+        const ctx = {
+          source: "pending-assign",
+          id: pm.id,
+          studentId: pm.studentId,
+          studentName: pm.studentName,
+          suggestedTutorId: pm.suggestedTutor,
+          course: pm.course,
+          reason: pm.reason,
+          priority: pm.priority,
+        };
+        sessionStorage.setItem("suggestionContext", JSON.stringify(ctx));
+      }
+    } catch (err) {
+      // ignore storage errors
+    }
 
-  const handleReassign = (pm: PendingMatch) => {
-    // Navigate to manual match page with request ID
-    router.push(`/coord/manual-match?req=${pm.id}`);
-  };
-
-  const handleReject = (id: string) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    router.push(
+      `/coord/manual-match?studentId=${encodeURIComponent(pm.studentId)}&suggestedTutorId=${encodeURIComponent(
+        pm.suggestedTutor
+      )}`
+    );
   };
 
   const badgeColor = (p: PendingMatch["priority"]) => {
@@ -71,7 +84,7 @@ const CoordPendingAssign: React.FC = () => {
             <button className="px-3 py-1.5 rounded-md bg-white text-dark-blue text-xs font-medium border border-black/10 hover:bg-soft-white-blue">
               Filter: All
             </button>
-            {hasRole(Role.Coordinator,Role.ProgramAdmin) ? (
+            {hasRole(Role.COORDINATOR,Role.PROGRAM_ADMIN) ? (
               <button className="px-3 py-1.5 rounded-md bg-white text-dark-blue text-xs font-medium border border-black/10 hover:bg-soft-white-blue">
                 Export
               </button>
@@ -128,22 +141,10 @@ const CoordPendingAssign: React.FC = () => {
                 {/* actions */}
                 <div className="flex gap-2 flex-wrap md:flex-col">
                   <button
-                    onClick={() => handleApprove(it.id)}
+                    onClick={() => handleReview(it)}
                     className="bg-light-heavy-blue hover:bg-light-blue text-white text-xs font-semibold px-3 py-1.5 rounded-md transition"
                   >
-                    Approve & Assign
-                  </button>
-                  <button
-                    onClick={() => handleReassign(it)}
-                    className="bg-white border border-black/10 text-dark-blue text-xs font-medium px-3 py-1.5 rounded-md hover:bg-soft-white-blue"
-                  >
-                    Reassign tutor
-                  </button>
-                  <button
-                    onClick={() => handleReject(it.id)}
-                    className="bg-white border border-red-200 text-red-600 text-xs font-medium px-3 py-1.5 rounded-md hover:bg-red-50"
-                  >
-                    Reject
+                    Review & Assign
                   </button>
                 </div>
               </article>

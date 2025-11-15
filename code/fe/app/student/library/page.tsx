@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { swalError, swalSuccess, swalConfirm } from "@/app/lib/swal";
-import { LIBRARY_RESOURCES, RECENT_SESSIONS, AVAILABLE_COURSES } from "@/app/lib/mocks";
+import { swalError, swalSuccess, swalConfirm } from "@/src/lib/swal";
+import { LIBRARY_RESOURCES, RECENT_SESSIONS, AVAILABLE_COURSES } from "@/src/lib/mocks";
 
 type LibraryResource = {
   id: string;

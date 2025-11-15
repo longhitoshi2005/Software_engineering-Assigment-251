@@ -4,14 +4,14 @@ import React, { useMemo, useState } from "react";
 
 type Session = { id: string; student: string; tutor: string; course: string; startTime: string; status: string; issueFlag?: string | null };
 
-const mock: Session[] = [
+const mock_sessions: Session[] = [
   { id: "S-1001", student: "Nguyen M.Q.", tutor: "Nguyen T.A.", course: "CO1001", startTime: "2025-11-02T14:00:00Z", status: "SCHEDULED", issueFlag: null },
   { id: "S-1002", student: "Tran T.H.", tutor: "Pham Q.T.", course: "MA1001", startTime: "2025-11-01T09:00:00Z", status: "CANCELLED", issueFlag: "late cancellation" },
   { id: "S-1003", student: "Le V.D.", tutor: "Truong Q.T.", course: "EE2002", startTime: "2025-11-01T11:00:00Z", status: "COMPLETED", issueFlag: "missing feedback" },
 ];
 
 const Sessions: React.FC = () => {
-  const [sessions, setSessions] = useState<Session[]>(mock);
+  const [sessions, setSessions] = useState<Session[]>(mock_sessions);
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const filtered = useMemo(() => sessions.filter((s) => statusFilter === "ALL" || s.status === statusFilter), [sessions, statusFilter]);

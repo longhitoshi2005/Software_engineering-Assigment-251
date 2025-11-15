@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { swalConfirm, swalSuccess, swalError } from "@/app/lib/swal";
-import { MY_UPCOMING_SESSIONS, MY_COMPLETED_SESSIONS } from "@/app/lib/mocks";
+import { swalConfirm, swalSuccess, swalError } from "@/src/lib/swal";
+import { MY_UPCOMING_SESSIONS, MY_COMPLETED_SESSIONS } from "@/src/lib/mocks";
 
 type SessionStatus =
   | "CONFIRMED"

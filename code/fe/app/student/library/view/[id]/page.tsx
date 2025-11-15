@@ -2,8 +2,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { swalSuccess, swalConfirm, swalError } from "@/app/lib/swal";
-import { LIBRARY_RESOURCES } from "@/app/lib/mocks";
+import { swalSuccess, swalConfirm, swalError } from "@/src/lib/swal";
+import { LIBRARY_RESOURCES } from "@/src/lib/mocks";
 import Link from "next/link";
 import QuestionBankViewer from "@/app/components/QuestionBankViewer";
 import type { LibraryResource } from "@/src/types";

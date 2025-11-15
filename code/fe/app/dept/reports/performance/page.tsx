@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { hasRole, Role } from '@/app/lib/role';
-import { PERFORMANCE_METRICS, type PerformanceMetric } from '@/app/lib/mocks';
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { hasRole, Role } from '@/src/lib/role';
+import { PERFORMANCE_METRICS, type PerformanceMetric } from '@/src/lib/mocks';
 
 const PerformanceReports: React.FC = () => {
   const [timeframe, setTimeframe] = useState("monthly");
@@ -27,7 +27,7 @@ const PerformanceReports: React.FC = () => {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.DepartmentChair, Role.ProgramAdmin]} title="Performance reports (DepartmentChair only)">
+    <ClientRoleGuard allowedRoles={[Role.DEPARTMENT_CHAIR, Role.PROGRAM_ADMIN]} title="Performance reports (DepartmentChair only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Performance reports</h1>

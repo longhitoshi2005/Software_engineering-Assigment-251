@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { hasRole, Role } from '@/app/lib/role';
+import { hasRole, Role } from '@/src/lib/role';
 
 export default function AdminDashboardPage() {
   const kpis = [
@@ -82,7 +82,7 @@ export default function AdminDashboardPage() {
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Recent Exports</h2>
-          {hasRole(Role.ProgramAdmin) ? (
+          {hasRole(Role.PROGRAM_ADMIN) ? (
             <Link
               href="/admin/exports"
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -121,7 +121,7 @@ export default function AdminDashboardPage() {
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Integrations</h2>
-          {hasRole(Role.ProgramAdmin) ? (
+          {hasRole(Role.PROGRAM_ADMIN) ? (
             <Link
               href="/admin/integrations"
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"

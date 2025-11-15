@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from 'react';
-import { hasRole, Role } from '@/app/lib/role';
-import { requestExport } from '@/app/lib/exports';
+import { hasRole, Role } from '@/src/lib/role';
+import { requestExport } from '@/src/lib/exports';
 
 export default function DeptExportControls() {
   const [loading, setLoading] = useState(false);
-  const canExport = hasRole(Role.DepartmentChair);
+  const canExport = hasRole(Role.DEPARTMENT_CHAIR);
 
   const handleExport = async () => {
     setLoading(true);

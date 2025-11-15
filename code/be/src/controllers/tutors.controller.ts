@@ -1,69 +1,30 @@
 // src/controllers/tutors.controller.ts
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { TutorsService } from '../services/tutors.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import { Role } from '../schemas';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Role } from '../schemas/enums/role.enum';
 
-@Controller('tutors')
+@Controller('api/tutors')
 export class TutorsController {
   constructor(private readonly tutorsService: TutorsService) {}
 
   // CHỈ admin + coordinator xem toàn bộ tutor
-  @Get()
-  @Roles(Role.ADMIN, Role.COORDINATOR)
-  async getAll() {
-    return this.tutorsService.findAll();
-  }
-
   // public: cho FE load danh sách để hiển thị
+
+  // Public list of tutors (public fields)
   @Public()
-  @Get('public')
-  async getPublic() {
-    return this.tutorsService.findAll();
+  @Get()
+  async listPublic() {
+    return this.tutorsService.findPublicList();
   }
 
-  // tạo tutor profile cho 1 user cụ thể
-  // admin / coordinator mới được tạo hộ người khác
-  @Post('user/:userId')
-  @Roles(Role.ADMIN, Role.COORDINATOR)
-  async createForUser(
-    @Param('userId') userId: string,
-    @Body() body: any,
-  ) {
-    return this.tutorsService.createForUser(userId, {
-      subjects: body.subjects,
-      courseCodes: body.courseCodes,
-      bio: body.bio,
-    });
+  // Get tutor schedule and load
+  @Get(':id/schedule')
+  @Roles(Role.TUTOR, Role.COORDINATOR, Role.ADMIN)
+  async getSchedule(@Param('id') id: string) {
+    return this.tutorsService.getSchedule(id);
   }
 
-  // chính tutor đó tự update profile của mình
-  // (nếu bạn muốn cho tutor tự sửa)
-  @Patch('me')
-  @Roles(Role.TUTOR)
-  async updateMyTutor(
-    @CurrentUser('sub') userId: string,
-    @Body() body: any,
-  ) {
-    return this.tutorsService.updateByUserId(userId, body);
-  }
-
-  // admin / coordinator update tutor bất kỳ
-  @Patch('user/:userId')
-  @Roles(Role.ADMIN, Role.COORDINATOR)
-  async updateForUser(
-    @Param('userId') userId: string,
-    @Body() body: any,
-  ) {
-    return this.tutorsService.updateByUserId(userId, body);
-  }
+  // (Other write endpoints removed in mock server — read-only public list and schedule provided)
 }

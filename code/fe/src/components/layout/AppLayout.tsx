@@ -1,22 +1,26 @@
-import React from "react";
-import MainNavbar from "@/src/components/layout/MainNavbar";
+import type { Metadata } from "next";
+import "./globals.css";
 
-interface AppLayoutProps {
-  children: React.ReactNode;
-}
-
-const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  return (
-    <div className="min-h-screen flex flex-col font-sans bg-soft-white-blue text-black">
-      {/* === MAIN NAVBAR === */}
-      <MainNavbar />
-
-      {/* === PAGE CONTENT === */}
-      <main className="flex-1 px-6 md:px-10 py-8">
-        {children}
-      </main>
-    </div>
-  );
+export const metadata: Metadata = {
+  title: "Tutor Support System",
+  description: "Next.js 15 App Router Migration",
 };
 
-export default AppLayout;
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      {/* suppressHydrationWarning prevents transient DOM attribute differences
+          (e.g. browser extensions injecting attributes) from failing hydration
+          during development. We keep the layout markup stable otherwise. */}
+      <body className="antialiased" suppressHydrationWarning={true}>
+        <div className="min-h-screen bg-soft-white-blue">
+          {children}
+        </div>
+      </body>
+    </html>
+  );
+}

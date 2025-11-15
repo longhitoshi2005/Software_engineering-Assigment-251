@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import BackButton from "@/app/components/BackButton";
-import TUTORS from "@/app/lib/tutors";
+import TUTORS from "@/src/lib/tutors";
 type Feedback = { id: number; rating: number; comment: string; date: string };
 
 export default function TutorProfilePage(props: any) {

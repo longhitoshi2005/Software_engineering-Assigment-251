@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { swalSuccess } from "@/app/lib/swal";
+import { swalSuccess } from "@/src/lib/swal";
 
 export default function StudentProfilePage() {
   // Non-editable fields (from system/DATACORE)

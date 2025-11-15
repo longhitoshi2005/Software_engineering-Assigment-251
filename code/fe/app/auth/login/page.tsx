@@ -4,16 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-import { Role, setClientRole } from "@/app/lib/role";
+import { Role, setClientRole } from "@/src/lib/role";
 
-// Test accounts with role-based routing (store canonical Role values)
+// Test accounts (single-role system). Each account has exactly one Role and a redirect.
 const TEST_ACCOUNTS: Record<string, { password: string; role: Role; redirect: string }> = {
-  "student@hcmut.edu.vn": { password: "student", role: Role.Student, redirect: "/student/dashboard" },
-  "tutor@hcmut.edu.vn": { password: "tutor", role: Role.Tutor, redirect: "/tutor/dashboard" },
-  "coord@hcmut.edu.vn": { password: "coord", role: Role.Coordinator, redirect: "/coord/dashboard" },
-  "dept@hcmut.edu.vn": { password: "dept", role: Role.DepartmentChair, redirect: "/dept/report-dept" },
-  "sa@hcmut.edu.vn": { password: "sa", role: Role.StudentAffairs, redirect: "/sa/dashboard" },
-  "admin@hcmut.edu.vn": { password: "admin", role: Role.ProgramAdmin, redirect: "/admin/dashboard" },
+  "student@hcmut.edu.vn": { password: "student", role: Role.STUDENT, redirect: "/student/dashboard" },
+  "tutor@hcmut.edu.vn": { password: "tutor", role: Role.TUTOR, redirect: "/tutor/dashboard" },
+  "coord@hcmut.edu.vn": { password: "coord", role: Role.COORDINATOR, redirect: "/coord/dashboard" },
+  "dept@hcmut.edu.vn": { password: "dept", role: Role.DEPARTMENT_CHAIR, redirect: "/dept/report-dept" },
+  "sa@hcmut.edu.vn": { password: "sa", role: Role.STUDENT_AFFAIRS, redirect: "/sa/dashboard" },
+  "admin@hcmut.edu.vn": { password: "admin", role: Role.PROGRAM_ADMIN, redirect: "/admin/dashboard" },
 };
 
 export default function LoginPage() {
@@ -47,9 +47,15 @@ export default function LoginPage() {
 
     // Store user info in localStorage (in production, use proper auth)
     localStorage.setItem("userEmail", email);
-    setClientRole(account.role);
+    try {
+      // Persist single-role only
+      localStorage.setItem('userRole', account.role);
+      setClientRole(account.role);
+    } catch (e) {
+      // ignore write errors in strict environments
+    }
 
-    // Redirect based on role
+    // Redirect based on assigned role
     router.push(account.redirect);
   };
 

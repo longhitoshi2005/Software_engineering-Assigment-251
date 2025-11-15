@@ -1,58 +1,48 @@
-// src/services/users.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Role, User, UserDocument } from '../schemas';
+import { STUDENTS } from '../mocks/data.mock';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) {}
-
   async createDemoUser() {
-    const existed = await this.userModel.findOne({
-      academicEmail: '2352525@hcmut.edu.vn',
-    });
-    if (existed) return existed;
-
-    const created = new this.userModel({
-      fullName: 'Nguyen Manh Quoc Khanh',
-      academicEmail: '2352525@hcmut.edu.vn',
-      role: 'student',
-      studentId: '2352525',
-      faculty: 'CSE',
-    });
-    return created.save();
+    const user = STUDENTS[0];
+    return Promise.resolve(user);
   }
 
   async findAll() {
-    return this.userModel.find().lean();
+    return Promise.resolve(STUDENTS);
   }
 
   async findById(id: string) {
-    const user = await this.userModel.findById(id).lean();
-    return user;
+    const u = STUDENTS.find((s) => s.id === id || s.studentId === id);
+    if (!u) throw new NotFoundException('Student not found');
+    return Promise.resolve(u);
   }
 
   async findByEmail(email: string) {
-    return this.userModel.findOne({ academicEmail: email }).lean();
+    const u = STUDENTS.find(
+      (s) => s.eduMail === email || s.personalEmail === email,
+    );
+    return Promise.resolve(u || null);
   }
 
-   async createFromGoogle(data: {
+  async createFromGoogle(data: {
     email: string;
     name: string;
     picture?: string;
     googleId?: string;
   }) {
-    const created = new this.userModel({
+    const created = {
+      id: `student-${Date.now()}`,
       fullName: data.name,
-      academicEmail: data.email,
-      avatar: data.picture,
-      role: Role.STUDENT,
-      googleId: data.googleId,
-    });
-    return created.save();
+      studentId: `S${Math.floor(Math.random() * 10000)}`,
+      eduMail: data.email,
+      personalEmail: data.email,
+      phoneNumber: '',
+      program: '',
+      faculty: '',
+      year: 0,
+      metadata: {},
+    };
+    return Promise.resolve(created);
   }
-
 }

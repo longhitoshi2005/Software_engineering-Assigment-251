@@ -1,10 +1,10 @@
 ﻿"use client";
 
 import React, { useMemo, useState } from "react";
-import { hasRole, Role } from "@/app/lib/role";
-import { requestExport } from "@/app/lib/exports";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { TUTOR_STATS, type TutorStat } from "@/app/lib/mocks";
+import { hasRole, Role } from "@/src/lib/role";
+import { requestExport } from "@/src/lib/exports";
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { TUTOR_STATS, type TutorStat } from "@/src/lib/mocks";
 
 const ReportsWorkload: React.FC = () => {
   const [tutors] = useState<TutorStat[]>(TUTOR_STATS);
@@ -26,7 +26,7 @@ const ReportsWorkload: React.FC = () => {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.DepartmentChair, Role.ProgramAdmin]} title="Reports">
+    <ClientRoleGuard allowedRoles={[Role.DEPARTMENT_CHAIR, Role.PROGRAM_ADMIN]} title="Reports">
       <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8 space-y-6">
         <header>
           <h1 className="text-xl md:text-2xl font-semibold text-dark-blue">Workload Report</h1>
@@ -50,7 +50,7 @@ const ReportsWorkload: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            {hasRole(Role.DepartmentChair) ? (
+            {hasRole(Role.DEPARTMENT_CHAIR) ? (
               <button onClick={() => exportCsv("departmental_csv")} className="px-3 py-1 rounded-md bg-light-heavy-blue text-white text-sm">
                 Departmental (CSV)
               </button>

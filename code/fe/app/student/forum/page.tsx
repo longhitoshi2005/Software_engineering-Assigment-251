@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { swalSuccess, swalError } from "@/app/lib/swal";
+import { swalSuccess, swalError } from "@/src/lib/swal";
 import type { Thread, ForumFilters } from "@/types/forum";
-import { mockThreads } from "@/src/mocks/forumData";
+import { mockThreads } from "@/src/lib/mocks";
 
 export default function ForumPage() {
   const router = useRouter();

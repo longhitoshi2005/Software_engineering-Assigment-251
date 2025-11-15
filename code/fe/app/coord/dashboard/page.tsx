@@ -1,46 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import SuggestionCard from "@/src/components/coord/SuggestionCard";
 
 export default function CoordDashboardPage() {
   // ==== MOCK DATA (có thể nối BE sau) ====
-  const termInfo = {
+  const mock_termInfo = {
     term: "2025-1",
     dept: "Computer Science & Engineering",
-    today: new Date().toLocaleDateString(),
+    // Use an explicit, deterministic date format to avoid SSR/client
+    // mismatches caused by differing server/browser locale settings.
+    today: new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date()),
   };
 
-  const todos = [
+  const mock_todos = [
     { id: "req-2043", title: "Approve 12 new student requests", to: "/coord/student-requests" },
     { id: "fbk-778", title: "Review 5 negative feedback flags", to: "/coord/feedback-issues" },
     { id: "con-332", title: "Resolve 3 schedule conflicts", to: "/coord/conflicts" },
   ];
 
-  const matchingSuggestions = [
+  const mock_matchingSuggestions = [
     {
       id: 101,
-      student: "23530xx – Nguyen V. T.",
+      studentId: "23530xx",
+      student: "Nguyen V. T.",
       course: "CO1001 – Programming Fundamentals",
+      suggestedTutorId: "TUT-101",
       suggestedTutor: "Pham Q. T.",
       score: 0.82,
       reason: "Overlapping availability (Mon/Wed) + prior course experience",
     },
     {
       id: 102,
-      student: "23527xx – Le A. K.",
+      studentId: "23527xx",
+      student: "Le A. K.",
       course: "CO2002 – Data Structures",
+      suggestedTutorId: "TUT-102",
       suggestedTutor: "Tran H. N.",
       score: 0.77,
       reason: "High rating in CO2002 + same department",
     },
   ];
 
-  const conflicts = [
+  const mock_conflicts = [
     { id: "C-12", tutor: "Truong Q. T.", when: "Fri 16:30", reason: "Double-booking (Lab D1 / Online)" },
     { id: "C-13", tutor: "Pham Q. T.", when: "Thu 09:00", reason: "Room unavailable (C2-301)" },
   ];
 
-  const weekSessions = [
+  const mock_weekSessions = [
     { id: "S-2001", time: "Mon 09:00", tutor: "Pham Q. T.", student: "23531xx", course: "MA1001", room: "C2-301" },
     { id: "S-2002", time: "Wed 14:00", tutor: "Nguyen T. A.", student: "23535xx", course: "CO1001", room: "B4-205" },
     { id: "S-2003", time: "Fri 16:30", tutor: "Truong Q. T.", student: "23529xx", course: "EE2002", room: "Lab D1" },
@@ -56,7 +63,7 @@ export default function CoordDashboardPage() {
           Coordinator Dashboard
         </h1>
         <p className="text-sm text-black/70 mt-1 max-w-2xl">
-          Term <span className="font-medium">{termInfo.term}</span> · {termInfo.dept} · Today: {termInfo.today}
+          Term <span className="font-medium">{mock_termInfo.term}</span> · {mock_termInfo.dept} · Today: {mock_termInfo.today}
         </p>
       </header>
 
@@ -80,7 +87,7 @@ export default function CoordDashboardPage() {
         <div className="bg-white border border-soft-white-blue rounded-lg p-5 lg:col-span-2">
           <h2 className="text-base font-semibold text-dark-blue">Your to-do</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {todos.map((t) => (
+            {mock_todos.map((t) => (
               <Link
                 key={t.id}
                 href={t.to}
@@ -113,31 +120,8 @@ export default function CoordDashboardPage() {
             </Link>
           </div>
           <div className="mt-3 flex flex-col divide-y" style={{ borderColor: "var(--color-soft-white-blue)" }}>
-            {matchingSuggestions.map((s) => (
-              <div key={s.id} className="py-3 flex items-start gap-3">
-                <div className="flex-1">
-                  <div className="text-sm text-black/80">
-                    <span className="font-semibold text-dark-blue">{s.student}</span> · {s.course}
-                  </div>
-                  <div className="text-xs text-black/60 mt-1">
-                    Suggest: <span className="font-medium">{s.suggestedTutor}</span> · Score {(s.score * 100).toFixed(0)}%
-                  </div>
-                  <div className="text-xs text-black/50 mt-1">{s.reason}</div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="text-sm font-semibold rounded-lg px-3 py-2 bg-[#24449A] text-white"
-                  >
-                    Assign
-                  </button>
-                  <button
-                    className="text-sm font-semibold rounded-lg px-3 py-2 border hover:bg-soft-white-blue/70 transition"
-                    style={{ borderColor: "var(--color-soft-white-blue)", color: "var(--color-medium-light-blue)", background: "var(--color-white)" }}
-                  >
-                    Details
-                  </button>
-                </div>
-              </div>
+            {mock_matchingSuggestions.map((s) => (
+              <SuggestionCard key={s.id} suggestion={s} />
             ))}
           </div>
         </div>
@@ -145,7 +129,7 @@ export default function CoordDashboardPage() {
         <div className="bg-white border border-soft-white-blue rounded-lg p-5">
           <h2 className="text-base font-semibold text-dark-blue">Schedule conflicts</h2>
           <ul className="mt-3 space-y-2">
-            {conflicts.map((c) => (
+            {mock_conflicts.map((c) => (
               <li key={c.id} className="bg-soft-white-blue rounded-lg p-3">
                 <div className="text-sm font-semibold text-dark-blue">{c.tutor}</div>
                 <div className="text-xs text-black/70">{c.when} — {c.reason}</div>
@@ -176,7 +160,7 @@ export default function CoordDashboardPage() {
             </Link>
           </div>
           <div className="mt-3 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {weekSessions.map((s) => (
+            {mock_weekSessions.map((s) => (
               <div key={s.id} className="bg-soft-white-blue rounded-lg p-3">
                 <div className="text-xs text-black/60">{s.time}</div>
                 <div className="text-sm font-semibold text-dark-blue mt-1">{s.course}</div>
@@ -194,3 +178,4 @@ export default function CoordDashboardPage() {
     </div>
   );
 }
+

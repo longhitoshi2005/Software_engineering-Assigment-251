@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TUTOR_DASH_SESSIONS, TUTOR_DASH_FEEDBACKS } from "@/app/lib/mocks";
+import { TUTOR_DASH_SESSIONS, TUTOR_DASH_FEEDBACKS } from "@/src/lib/mocks";
 
 type TutorStat = {
   label: string;

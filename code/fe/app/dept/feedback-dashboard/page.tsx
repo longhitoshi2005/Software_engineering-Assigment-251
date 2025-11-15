@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { Role } from "@/app/lib/role";
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { Role } from "@/src/lib/role";
 
 const FeedbackDashboard: React.FC = () => {
   const summary = [
@@ -16,7 +16,7 @@ const FeedbackDashboard: React.FC = () => {
     { tag: "scheduling", count: 7 },
   ];
   return (
-    <ClientRoleGuard allowedRoles={[Role.DepartmentChair, Role.ProgramAdmin]} title="Feedback dashboard (DepartmentChair only)">
+    <ClientRoleGuard allowedRoles={[Role.DEPARTMENT_CHAIR, Role.PROGRAM_ADMIN]} title="Feedback dashboard (DepartmentChair only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Feedback dashboard</h1>

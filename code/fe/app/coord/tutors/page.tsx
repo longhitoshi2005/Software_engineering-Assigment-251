@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { TUTORS } from "@/app/lib/mocks";
+import { TUTORS } from "@/src/lib/mocks";
 
 type TutorAvail = {
   id: string;

@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { swalSuccess, swalError } from "@/app/lib/swal";
+import { swalSuccess, swalError } from "@/src/lib/swal";
 import type { Thread, Reply } from "@/types/forum";
-import { mockThreads, mockReplies } from "@/src/mocks/forumData";
+import { mockThreads, mockReplies } from "@/src/lib/mocks";
 
 export default function ForumThreadDetailPage() {
   const params = useParams();

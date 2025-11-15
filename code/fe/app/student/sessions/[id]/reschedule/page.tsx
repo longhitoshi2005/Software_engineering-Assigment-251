@@ -2,7 +2,7 @@
 
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { swalError, swalSuccess } from '@/app/lib/swal';
+import { swalError, swalSuccess } from '@/src/lib/swal';
 
 type SessionData = {
   sessionId: string;

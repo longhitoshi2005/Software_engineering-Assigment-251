@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { Role } from "@/app/lib/role";
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { Role } from "@/src/lib/role";
 import { FlaggedFeedback } from "./types";
 
-const mockData: FlaggedFeedback[] = [
+const mock_Data: FlaggedFeedback[] = [
   {
     feedbackId: "F-1001",
     sessionId: "S-2001",
@@ -44,7 +44,7 @@ const mockData: FlaggedFeedback[] = [
 const statusOptions = ["ALL", "NEW", "IN_PROGRESS", "RESOLVED"] as const;
 
 const CoordinatorInbox: React.FC = () => {
-  const [items, setItems] = useState<FlaggedFeedback[]>(mockData);
+  const [items, setItems] = useState<FlaggedFeedback[]>(mock_Data);
   const [filter, setFilter] = useState<typeof statusOptions[number]>("ALL");
   const [search, setSearch] = useState("");
 
@@ -67,7 +67,7 @@ const CoordinatorInbox: React.FC = () => {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.Coordinator]} title="Feedback Inbox">
+    <ClientRoleGuard allowedRoles={[Role.COORDINATOR]} title="Feedback Inbox">
       <div className="min-h-[calc(100vh-60px)] px-4 py-6 md:px-8 space-y-6">
         <header>
           <h1 className="text-2xl md:text-3xl font-bold text-dark-blue">Feedback Inbox</h1>

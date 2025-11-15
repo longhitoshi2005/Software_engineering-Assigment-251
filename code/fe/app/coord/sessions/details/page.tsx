@@ -5,7 +5,7 @@ import React, { useState, useMemo } from "react";
 const SessionDetails: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const sessions = useMemo(() => [
+  const mock_sessions = useMemo(() => [
     {
       id: 1,
       student: "Alice Johnson",
@@ -53,9 +53,9 @@ const SessionDetails: React.FC = () => {
   ], []);
 
   const filteredSessions = useMemo(() => {
-    if (statusFilter === "all") return sessions;
-    return sessions.filter(session => session.status === statusFilter);
-  }, [sessions, statusFilter]);
+    if (statusFilter === "all") return mock_sessions;
+    return mock_sessions.filter(session => session.status === statusFilter);
+  }, [mock_sessions, statusFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

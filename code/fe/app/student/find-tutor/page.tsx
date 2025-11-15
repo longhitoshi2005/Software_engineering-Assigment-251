@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import TUTORS from "@/app/lib/tutors";
+import TUTORS from "@/src/lib/tutors";
 
 export default function FindTutorPage() {
   const router = useRouter();

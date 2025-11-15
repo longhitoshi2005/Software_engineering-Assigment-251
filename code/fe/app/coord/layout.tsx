@@ -1,12 +1,10 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { hasRole } from "@/app/lib/role";
-import { COORD_PERMISSION_OVERRIDES } from "./permission-overrides";
 
-export default function CoordLayout({
+export default function DeptLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -22,36 +20,18 @@ export default function CoordLayout({
 
   const navSections = [
     {
-      label: "Dashboard",
-      basePath: "/coord/dashboard",
+      label: "Reports",
+      basePath: "/dept/reports",
       children: [
-        { label: "Overview", path: "/coord/dashboard" },
-        { label: "Student Requests", path: "/coord/student-requests" },
-      ],
-    },
-    {
-      label: "Operations",
-      basePath: "/coord/conflicts",
-      children: [
-        { label: "Conflicts", path: "/coord/conflicts" },
-        { label: "Pending Assignments", path: "/coord/pending-assign" },
-        { label: "Manual Match", path: "/coord/manual-match" },
-      ],
-    },
-    {
-      label: "Management",
-      basePath: "/coord/sessions",
-      children: [
-        { label: "Sessions", path: "/coord/sessions" },
-        { label: "Tutors", path: "/coord/tutors" },
-        { label: "Feedback Issues", path: "/coord/feedback-issues" },
+        { label: "View Reports", path: "/dept/reports" },
+        { label: "Feedback Trends", path: "/dept/reports/feedback-trends" },
       ],
     },
     {
       label: "Profile",
-      basePath: "/coord/profile",
+      basePath: "/dept/profile",
       children: [
-        { label: "My Profile", path: "/coord/profile" },
+        { label: "My Profile", path: "/dept/profile" },
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -67,7 +47,7 @@ export default function CoordLayout({
         <div
           className="flex items-center gap-3 cursor-pointer"
         >
-          <Link href="/coord/dashboard">
+          <Link href="/dept/reports">
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-1">
               <Image
                 src="/logo-hcmut.png"
@@ -83,7 +63,7 @@ export default function CoordLayout({
               TUTOR SUPPORT SYSTEM
             </span>
             <span className="text-white/50 text-[0.6rem] uppercase tracking-wide">
-              coordinator
+              department
             </span>
           </div>
         </div>
@@ -118,47 +98,37 @@ export default function CoordLayout({
                              rounded-md shadow-lg border border-black/10 py-2 z-50"
                 >
                   <div className="absolute -top-2 left-0 w-full h-3"></div>
-                  {group.children
-                    .filter((child) => {
-                      // Always keep logout button
-                      if (child.label === "Logout") return true;
 
-                      const override = COORD_PERMISSION_OVERRIDES[child.path];
-                      if (!override) return true;
-
-                      // Evaluate client-side role guard
-                      return hasRole(...override);
-                    })
-                    .map((child) => {
-                      const isChildActive = pathname === child.path;
-                      const isLogout = child.label === "Logout";
-
-                      if (isLogout) {
-                        return (
-                          <button
-                            key={child.label}
-                            onClick={handleLogout}
-                            className="block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
-                          >
-                            {child.label}
-                          </button>
-                        );
-                      }
-
+                  {group.children.map((child) => {
+                    const isChildActive = pathname === child.path;
+                    const isLogout = child.label === "Logout";
+                    
+                    if (isLogout) {
                       return (
-                        <Link
-                          key={child.path}
-                          href={child.path}
-                          className={`block px-4 py-2 text-sm whitespace-nowrap transition ${
-                            isChildActive
-                              ? "text-dark-blue font-semibold underline underline-offset-4"
-                              : "text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
-                          }`}
+                        <button
+                          key={child.label}
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
                         >
                           {child.label}
-                        </Link>
+                        </button>
                       );
-                    })}
+                    }
+                    
+                    return (
+                      <Link
+                        key={child.path}
+                        href={child.path}
+                        className={`block px-4 py-2 text-sm whitespace-nowrap transition ${
+                          isChildActive
+                            ? "text-dark-blue font-semibold underline underline-offset-4"
+                            : "text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             );

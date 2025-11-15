@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
-import { SYSTEM_TASKS, SystemTask } from '@/app/lib/mocks';
-import { hasRole, Role } from "@/app/lib/role";
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
+import { SYSTEM_TASKS, SystemTask } from '@/src/lib/mocks';
+import { hasRole, Role } from "@/src/lib/role";
 
 const SystemTasks: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("all");
@@ -26,7 +26,7 @@ const SystemTasks: React.FC = () => {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.ProgramAdmin]} title="System tasks (Admin only)">
+    <ClientRoleGuard allowedRoles={[Role.PROGRAM_ADMIN]} title="System tasks (Admin only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">System tasks</h1>

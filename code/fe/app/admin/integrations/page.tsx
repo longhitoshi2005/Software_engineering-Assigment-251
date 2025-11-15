@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { hasRole, Role } from '@/app/lib/role';
-import ClientRoleGuard from "@/app/coord/ClientRoleGuard";
+import { hasRole, Role } from '@/src/lib/role';
+import ClientRoleGuard from "@/src/components/ClientRoleGuard";
 import { connectIntegration, disconnectIntegration, setupIntegration } from "@/app/admin/actions";
-import { INTEGRATIONS, Integration } from '@/app/lib/mocks';
+import { INTEGRATIONS, Integration } from '@/src/lib/mocks';
 
 const Integrations: React.FC = () => {
   const integrations = useMemo<Integration[]>(() => INTEGRATIONS, []);
@@ -32,7 +32,7 @@ const Integrations: React.FC = () => {
   };
 
   return (
-    <ClientRoleGuard allowedRoles={[Role.ProgramAdmin]} title="Integrations (Admin only)">
+    <ClientRoleGuard allowedRoles={[Role.PROGRAM_ADMIN]} title="Integrations (Admin only)">
       <div className="flex flex-col gap-6">
       <section className="bg-white border border-soft-white-blue rounded-lg px-5 py-4">
         <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Integrations</h1>
@@ -55,7 +55,7 @@ const Integrations: React.FC = () => {
                   <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(integration.status)}`}>
                     {integration.status}
                   </span>
-                  {hasRole(Role.Coordinator, Role.ProgramAdmin) ? getActionButton(integration.status, integration.id) : <div className="text-sm text-black/60">Integration controls are for Coordinators/Program Admins.</div>}
+                  {hasRole(Role.COORDINATOR, Role.PROGRAM_ADMIN) ? getActionButton(integration.status, integration.id) : <div className="text-sm text-black/60">Integration controls are for Coordinators/Program Admins.</div>}
                 </div>
               </div>
             </div>
