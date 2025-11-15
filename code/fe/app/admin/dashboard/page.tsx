@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { hasRole, Role } from '@/app/lib/role';
 
 export default function AdminDashboardPage() {
   const kpis = [
@@ -82,16 +81,12 @@ export default function AdminDashboardPage() {
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Recent Exports</h2>
-          {hasRole(Role.ProgramAdmin) ? (
-            <Link
-              href="/admin/exports"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              View all →
-            </Link>
-          ) : (
-            <div className="text-sm text-black/60">Recent exports list is available to Program Admins.</div>
-          )}
+          <Link
+            href="/admin/exports"
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            View all →
+          </Link>
         </div>
         <div className="space-y-3">
           {recentExports.map((exp) => (
@@ -121,16 +116,12 @@ export default function AdminDashboardPage() {
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Integrations</h2>
-          {hasRole(Role.ProgramAdmin) ? (
-            <Link
-              href="/admin/integrations"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Manage →
-            </Link>
-          ) : (
-            <div className="text-sm text-black/60">Integration management is reserved for Program Admins.</div>
-          )}
+          <Link
+            href="/admin/integrations"
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Manage →
+          </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {integrations.map((int) => (

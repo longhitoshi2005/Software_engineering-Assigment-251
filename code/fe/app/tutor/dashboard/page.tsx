@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { TUTOR_DASH_SESSIONS, TUTOR_DASH_FEEDBACKS } from "@/app/lib/mocks";
+import { useMemo, useState } from "react"; // ADDED
+import { TUTOR_DASH_SESSIONS, TUTOR_DASH_FEEDBACKS } from "../../lib/mocks";
 
 type TutorStat = {
   label: string;
@@ -36,13 +37,49 @@ export default function TutorDashboardPage() {
   ];
 
   const sessions: SessionItem[] = TUTOR_DASH_SESSIONS as SessionItem[];
-
   const feedbacks: FeedbackItem[] = TUTOR_DASH_FEEDBACKS as FeedbackItem[];
 
   const renderStars = (count: number) =>
     Array.from({ length: 5 }).map((_, i) => (
       <span key={i}>{i < count ? "★" : "☆"}</span>
     ));
+
+  // === ANALYTICS STATE & DERIVED METRICS ===
+  const [showAnalytics, setShowAnalytics] = useState(false); // ADDED
+
+  // ADDED: Tính toán analytics từ feedbacks (deterministic, không dùng Date.now để tránh hydration issue)
+  const analytics = useMemo(() => {
+    const total = feedbacks.length || 1;
+    const avg =
+      feedbacks.reduce((acc, f) => acc + (Number(f.rating) || 0), 0) / total;
+
+    const dist = [1, 2, 3, 4, 5].map(
+      (s) => feedbacks.filter((f) => Number(f.rating) === s).length
+    );
+    const maxBar = Math.max(1, ...dist);
+    const positive = feedbacks.filter((f) => Number(f.rating) >= 4).length;
+    const positiveRatio = Math.round((positive / (feedbacks.length || 1)) * 100);
+
+    // Top subjects theo điểm trung bình
+    const bySubject: Record<
+      string,
+      { sum: number; count: number; avg: number }
+    > = {};
+    feedbacks.forEach((f) => {
+      const key = f.subject || "Unknown";
+      if (!bySubject[key]) bySubject[key] = { sum: 0, count: 0, avg: 0 };
+      bySubject[key].sum += Number(f.rating) || 0;
+      bySubject[key].count += 1;
+    });
+    Object.keys(bySubject).forEach((k) => {
+      bySubject[k].avg = bySubject[k].sum / bySubject[k].count;
+    });
+    const topSubjects = Object.entries(bySubject)
+      .sort((a, b) => b[1].avg - a[1].avg)
+      .slice(0, 5);
+
+    return { avg, dist, maxBar, positiveRatio, topSubjects };
+  }, [feedbacks]);
 
   return (
     <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8 space-y-8">
@@ -142,7 +179,8 @@ export default function TutorDashboardPage() {
             </p>
           </div>
           <button
-            onClick={() => alert("Open feedback analytics (mock)")}
+            // CHANGED: mở analytics panel thay vì alert
+            onClick={() => setShowAnalytics(true)}
             className="rounded-md bg-white border border-light-heavy-blue text-dark-blue text-sm font-semibold px-3 py-1.5 hover:bg-soft-white-blue/60 transition"
           >
             View Analytics
@@ -166,16 +204,146 @@ export default function TutorDashboardPage() {
                   &ldquo;{fb.comment}&rdquo;
                 </p>
               </div>
-              <button
-                onClick={() => alert(`View full feedback ${fb.id} (mock)`)}
+              <Link
+                href={`/tutor/dashboard/${fb.id}`}
                 className="rounded-md bg-light-heavy-blue text-white text-xs font-semibold px-3 py-1 hover:bg-light-blue transition"
               >
                 View
-              </button>
+              </Link>
             </div>
           ))}
         </div>
       </section>
+
+      {/* === ANALYTICS PANEL (SLIDE-UP MODAL) === */}
+      {showAnalytics && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end md:items-center justify-center p-0 md:p-6">
+          <div className="w-full md:max-w-3xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-black/10 overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-black/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-base md:text-lg font-semibold text-dark-blue">
+                  Feedback Analytics
+                </h3>
+                <p className="text-xs text-black/60">
+                  Distribution, average rating, and top subjects (mock data)
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAnalytics(false)}
+                className="text-sm px-3 py-1.5 rounded-md border hover:bg-soft-white-blue transition"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-6">
+              {/* KPI Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-soft-white-blue/60 border border-soft-white-blue rounded-lg p-4">
+                  <div className="text-xs font-semibold text-dark-blue">
+                    Average Rating
+                  </div>
+                  <div className="text-2xl font-bold text-dark-blue mt-1">
+                    {analytics.avg.toFixed(2)} / 5
+                  </div>
+                </div>
+                <div className="bg-soft-white-blue/60 border border-soft-white-blue rounded-lg p-4">
+                  <div className="text-xs font-semibold text-dark-blue">
+                    Positive (≥ 4★)
+                  </div>
+                  <div className="text-2xl font-bold text-dark-blue mt-1">
+                    {analytics.positiveRatio}%
+                  </div>
+                </div>
+                <div className="bg-soft-white-blue/60 border border-soft-white-blue rounded-lg p-4">
+                  <div className="text-xs font-semibold text-dark-blue">
+                    Total Feedback
+                  </div>
+                  <div className="text-2xl font-bold text-dark-blue mt-1">
+                    {feedbacks.length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Distribution */}
+              <div>
+                <h4 className="text-sm font-semibold text-dark-blue mb-3">
+                  Score Distribution
+                </h4>
+                <div className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((s, idx) => {
+                    const count = analytics.dist[s - 1];
+                    const ratio =
+                      Math.round((count / analytics.maxBar) * 100) || 0;
+                    return (
+                      <div key={s} className="flex items-center gap-3">
+                        <div className="w-8 text-right text-xs text-black/70">
+                          {s}★
+                        </div>
+                        <div className="flex-1 bg-soft-white-blue rounded h-3 relative">
+                          <div
+                            className="absolute left-0 top-0 bottom-0 bg-light-heavy-blue rounded"
+                            style={{ width: `${ratio}%` }}
+                            aria-hidden
+                          />
+                        </div>
+                        <div className="w-10 text-xs text-black/70 text-right">
+                          {count}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Top subjects */}
+              <div>
+                <h4 className="text-sm font-semibold text-dark-blue mb-3">
+                  Top Subjects by Avg Rating
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {analytics.topSubjects.map(([subj, s]) => (
+                    <div
+                      key={subj}
+                      className="border border-soft-white-blue rounded-lg p-3 bg-soft-white-blue/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold text-dark-blue">
+                          {subj}
+                        </div>
+                        <div className="text-sm font-bold text-dark-blue">
+                          {s.avg.toFixed(2)} / 5
+                        </div>
+                      </div>
+                      <div className="text-[0.7rem] text-black/60 mt-1">
+                        {s.count} feedback(s)
+                      </div>
+                    </div>
+                  ))}
+                  {analytics.topSubjects.length === 0 && (
+                    <div className="text-sm text-black/50">
+                      No subject data.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-black/10 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowAnalytics(false)}
+                className="px-3 py-2 text-sm rounded-md border hover:bg-soft-white-blue transition"
+              >
+                Close
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

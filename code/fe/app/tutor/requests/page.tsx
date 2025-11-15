@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // ADDED: for Back button
 
 type BookingRequest = {
   id: string;
@@ -26,7 +27,7 @@ type UpcomingSession = {
 
 type DecisionLog = {
   id: string;
-  action: "approved" | "rejected";
+  action: "approved" | "rejected" | "forwarded"; // ADDED: 'forwarded'
   studentName: string;
   course: string;
   time: string;
@@ -34,6 +35,8 @@ type DecisionLog = {
 };
 
 export default function TutorRequestsPage() {
+  const router = useRouter(); // ADDED: useRouter instance
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Mock pending requests
@@ -101,12 +104,29 @@ export default function TutorRequestsPage() {
     },
   ]);
 
+  // ==== ADDED: lightweight toast (no navigation) ====
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    variant: "success" | "danger" | "warning";
+  }>({ show: false, message: "", variant: "success" });
+
+  const showToast = (message: string, variant: "success" | "danger" | "warning" = "success") => {
+    setToast({ show: true, message, variant });
+  };
+
+  useEffect(() => {
+    if (!toast.show) return;
+    const t = setTimeout(() => setToast((s) => ({ ...s, show: false })), 2200);
+    return () => clearTimeout(t);
+  }, [toast.show]);
+  // ==== END ADDED ====
+
   const handleApprove = (req: BookingRequest) => {
     setPending((prev) => prev.filter((r) => r.id !== req.id));
-
     setDecisions((prev) => [
       {
-        id: `LOG-${Date.now()}`,
+        id: `LOG-${Date.now()}`, // created on click → safe for hydration
         action: "approved",
         studentName: req.studentName,
         course: req.course,
@@ -114,11 +134,11 @@ export default function TutorRequestsPage() {
       },
       ...prev,
     ]);
+    showToast(`Approved booking for ${req.studentName}`, "success"); // ADDED
   };
 
   const handleReject = (req: BookingRequest) => {
     setPending((prev) => prev.filter((r) => r.id !== req.id));
-
     setDecisions((prev) => [
       {
         id: `LOG-${Date.now()}`,
@@ -130,15 +150,15 @@ export default function TutorRequestsPage() {
       },
       ...prev,
     ]);
+    showToast(`Rejected request from ${req.studentName}`, "danger"); // ADDED
   };
 
   const handleForward = (req: BookingRequest) => {
     setPending((prev) => prev.filter((r) => r.id !== req.id));
-
     setDecisions((prev) => [
       {
         id: `LOG-${Date.now()}`,
-        action: "approved", // using "approved" for log display
+        action: "forwarded", // ADDED: tách riêng 'forwarded' để log đúng nghĩa
         studentName: req.studentName,
         course: req.course,
         time: "Just now",
@@ -146,6 +166,7 @@ export default function TutorRequestsPage() {
       },
       ...prev,
     ]);
+    showToast(`Sent ${req.studentName}'s request to coordinator`, "warning"); // ADDED
   };
 
   const toggleExpand = (id: string) => {
@@ -155,13 +176,26 @@ export default function TutorRequestsPage() {
   return (
     <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8 space-y-8">
       {/* HEADER */}
-      <header>
-        <h1 className="text-xl md:text-2xl font-semibold text-dark-blue">
-          Incoming Session Requests
-        </h1>
-        <p className="text-sm text-black/70 mt-1 max-w-2xl">
-          Approve or reject booking requests sent by students. Approved slots will appear on your schedule and in the student dashboard.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-semibold text-dark-blue">
+            Incoming Session Requests
+          </h1>
+          <p className="text-sm text-black/70 mt-1 max-w-2xl">
+            Approve or reject booking requests sent by students. Approved slots will appear on your schedule and in the student dashboard.
+          </p>
+        </div>
+
+        {/* ADDED: Back button */}
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="shrink-0 rounded-md border border-black/10 px-3 py-1.5 text-sm text-dark-blue hover:bg-soft-white-blue transition"
+          title="Go back"
+        >
+          ← Back
+        </button>
+        {/* END ADDED */}
       </header>
 
       {/* main */}
@@ -248,10 +282,10 @@ export default function TutorRequestsPage() {
                           )}
 
                           <div className="flex gap-2">
-                            <button className="text-[0.65rem] text-light-heavy-blue hover:underline">
+                            <button type="button" className="text-[0.65rem] text-light-heavy-blue hover:underline">
                               View student profile
                             </button>
-                            <button className="text-[0.65rem] text-light-heavy-blue hover:underline">
+                            <button type="button" className="text-[0.65rem] text-light-heavy-blue hover:underline">
                               View previous sessions
                             </button>
                           </div>
@@ -261,24 +295,28 @@ export default function TutorRequestsPage() {
                       {/* actions */}
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
+                          type="button" // ensure no form submit
                           onClick={() => handleApprove(req)}
                           className="bg-light-heavy-blue hover:bg-light-blue text-white text-xs font-semibold px-3 py-1.5 rounded-md transition"
                         >
                           Approve booking
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleReject(req)}
                           className="bg-white border border-red-200 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-red-50 transition"
                         >
                           Reject
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleForward(req)}
                           className="bg-white border border-amber-200 text-amber-600 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-amber-50 transition"
                         >
                           Send to coordinator
                         </button>
                         <button
+                          type="button"
                           onClick={() => toggleExpand(req.id)}
                           className="bg-white border border-black/10 text-dark-blue text-xs font-medium px-3 py-1.5 rounded-md hover:bg-soft-white-blue"
                         >
@@ -334,12 +372,18 @@ export default function TutorRequestsPage() {
                       className={`w-2 h-2 rounded-full mt-1 ${
                         log.action === "approved"
                           ? "bg-emerald-500"
-                          : "bg-red-500"
+                          : log.action === "rejected"
+                          ? "bg-red-500"
+                          : "bg-amber-500" // forwarded
                       }`}
                     />
                     <div className="flex-1">
                       <p className="text-[0.7rem] text-black">
-                        {log.action === "approved" ? "Approved" : "Rejected"}{" "}
+                        {log.action === "approved"
+                          ? "Approved"
+                          : log.action === "rejected"
+                          ? "Rejected"
+                          : "Forwarded to coordinator"}{" "}
                         <span className="font-semibold">{log.studentName}</span>{" "}
                         for {log.course}
                       </p>
@@ -362,6 +406,24 @@ export default function TutorRequestsPage() {
           FR-SCH.02 Tutor confirmation · FR-SCH.03 Reschedule/Cancel rules · Linked to student dashboard
         </p>
       </div>
+
+      {/* ==== ADDED: Toast UI (no navigation) ==== */}
+      {toast.show && (
+        <div className="fixed bottom-5 right-5 z-50">
+          <div
+            className={`px-4 py-3 rounded-md shadow-lg text-sm text-white ${
+              toast.variant === "success"
+                ? "bg-emerald-600"
+                : toast.variant === "danger"
+                ? "bg-red-600"
+                : "bg-amber-600"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+      {/* ==== END ADDED ==== */}
     </div>
   );
 }
