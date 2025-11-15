@@ -95,95 +95,96 @@ export default function AdminAuditLogsPage() {
 
   return (
     <ClientRoleGuard allowedRoles={[Role.PROGRAM_ADMIN]} title="Audit logs (Admin only)">
-      <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
-        {/* Header */}
-        <header>
-          <h1 className="text-2xl md:text-3xl font-bold text-dark-blue">Audit Logs</h1>
-          <p className="text-sm md:text-base text-black/70 mt-1">
-            View recent authentication events, role changes, exports, data syncs, and business events.
-          </p>
-        </header>
+    <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
+      {/* Header */}
+      <header>
+        <h1 className="text-2xl md:text-3xl font-bold text-dark-blue">Audit Logs</h1>
+        <p className="text-sm md:text-base text-black/70 mt-1">
+          View recent authentication events, role changes, exports, and data sync activities.
+        </p>
+      </header>
 
-        {/* Filter Bar */}
-        <section className="bg-white border border-soft-white-blue rounded-lg p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-              <div>
-                <label className="block text-sm font-medium text-dark-blue mb-1">
-                  Actor (user or system)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Search by actor or target..."
-                  value={filterActor}
-                  onChange={(e) => setFilterActor(e.target.value)}
-                  className="w-full px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:border-light-light-blue focus:bg-white transition"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-dark-blue mb-1">Event Type</label>
-                <select
-                  value={filterEvent}
-                  onChange={(e) => setFilterEvent(e.target.value)}
-                  className="w-full px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:border-light-light-blue focus:bg-white transition"
-                >
-                  <option value="ALL">All Events</option>
-                  <option value="LOGIN">LOGIN</option>
-                  <option value="ROLE_CHANGE">ROLE_CHANGE</option>
-                  <option value="EXPORT">EXPORT</option>
-                  <option value="SYNC">SYNC</option>
-                  <option value="ASSIGNMENT">ASSIGNMENT</option>
-                  <option value="CONFLICT">CONFLICT</option>
-                  <option value="MATCH">MATCH</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="ml-4">
-              {hasRole(Role.PROGRAM_ADMIN) ? (
-                <button onClick={() => import('../actions').then(m => m.exportAudit())} className="px-3 py-1.5 rounded-md bg-light-heavy-blue text-white text-xs font-medium hover:bg-[#00539a]">Export</button>
-              ) : (
-                <div className="text-sm text-black/60">Exporting audit logs is restricted to Program Admin.</div>
-              )}
-            </div>
+      {/* Filter Bar */}
+      <section className="bg-white border border-soft-white-blue rounded-lg p-5">
+        <h2 className="text-base font-semibold text-dark-blue mb-3">Filters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-dark-blue mb-1">
+              Actor (user or system)
+            </label>
+            <input
+              type="text"
+              placeholder="Search by actor or target..."
+              value={filterActor}
+              onChange={(e) => setFilterActor(e.target.value)}
+              className="w-full px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:border-light-light-blue focus:bg-white transition"
+            />
           </div>
-        </section>
+          <div>
+            <label className="block text-sm font-medium text-dark-blue mb-1">Event Type</label>
+            <select
+              value={filterEvent}
+              onChange={(e) => setFilterEvent(e.target.value)}
+              className="w-full px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:border-light-light-blue focus:bg-white transition"
+            >
+              <option value="ALL">All Events</option>
+              <option value="LOGIN">LOGIN</option>
+              <option value="ROLE_CHANGE">ROLE_CHANGE</option>
+              <option value="EXPORT">EXPORT</option>
+              <option value="SYNC">SYNC</option>
+            </select>
+          </div>
+        </div>
+      </section>
 
-        {/* Audit Table */}
-        <section className="bg-white border border-soft-white-blue rounded-lg p-5 overflow-x-auto">
-          <h2 className="text-base font-semibold text-dark-blue mb-3">Audit Events ({filteredLogs.length})</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-soft-white-blue">
-                <th className="text-left py-2 px-3 font-semibold text-dark-blue">Time</th>
-                <th className="text-left py-2 px-3 font-semibold text-dark-blue">Actor</th>
-                <th className="text-left py-2 px-3 font-semibold text-dark-blue">Event</th>
-                <th className="text-left py-2 px-3 font-semibold text-dark-blue">Target</th>
-                <th className="text-left py-2 px-3 font-semibold text-dark-blue">Details</th>
+      {/* Audit Table */}
+      <section className="bg-white border border-soft-white-blue rounded-lg p-5 overflow-x-auto">
+        <h2 className="text-base font-semibold text-dark-blue mb-3">
+          Audit Events ({filteredLogs.length})
+        </h2>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-soft-white-blue">
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Time</th>
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Actor</th>
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Event</th>
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Target</th>
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLogs.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-6 text-center text-black/60">
+                  No audit logs match your filters.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-black/60">No audit logs match your filters.</td>
+            ) : (
+              filteredLogs.map((log, idx) => (
+                <tr
+                  key={idx}
+                  className="border-b border-soft-white-blue hover:bg-soft-white-blue"
+                >
+                  <td className="py-3 px-3 text-black/60 whitespace-nowrap">{log.time}</td>
+                  <td className="py-3 px-3 font-medium text-dark-blue">{log.actor}</td>
+                  <td className="py-3 px-3">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${getEventColor(
+                        log.event
+                      )}`}
+                    >
+                      {log.event}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-black/70">{log.target}</td>
+                  <td className="py-3 px-3 text-black/60">{log.details}</td>
                 </tr>
-              ) : (
-                filteredLogs.map((log, idx) => (
-                  <tr key={idx} className="border-b border-soft-white-blue hover:bg-soft-white-blue">
-                    <td className="py-3 px-3 text-black/60 whitespace-nowrap">{log.time}</td>
-                    <td className="py-3 px-3 font-medium text-dark-blue">{log.actor}</td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventColor(log.event)}`}>{log.event}</span>
-                    </td>
-                    <td className="py-3 px-3 text-black/70">{log.target}</td>
-                    <td className="py-3 px-3 text-black/60">{log.details}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
-      </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
+    </div>
     </ClientRoleGuard>
   );
 }

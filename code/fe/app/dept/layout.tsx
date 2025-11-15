@@ -1,4 +1,4 @@
-﻿﻿"use client";
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -13,19 +13,74 @@ export default function DeptLayout({
   const router = useRouter();
 
   const handleLogout = () => {
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
+    // mock clear session
+    try {
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userRole");
+    } catch {}
     router.push("/auth/login");
   };
 
-  const navSections = [
+  // ===== NAV MODEL (đã bổ sung đầy đủ) =====
+  const navSections: {
+    label: string;
+    basePath: string;
+    children: { label: string; path: string; external?: boolean }[];
+  }[] = [
+    {
+      label: "Dashboard",
+      basePath: "/dept",
+      children: [
+        { label: "Overview", path: "/dept" }, // /dept/page.tsx
+      ],
+    },
+    {
+      label: "Operations",
+      basePath: "/dept/matching",
+      children: [
+        { label: "Matching Oversight", path: "/dept/matching" },
+        { label: "Sessions", path: "/dept/sessions" },
+        { label: "Progress Logs", path: "/dept/progress" },
+      ],
+    },
+    {
+      label: "Analytics",
+      basePath: "/dept/workload",
+      children: [
+        { label: "Tutor Workload", path: "/dept/workload" },
+        { label: "Feedback Analytics", path: "/dept/feedback" },
+      ],
+    },
     {
       label: "Reports",
       basePath: "/dept/reports",
       children: [
-        { label: "View Reports", path: "/dept/reports" },
-        { label: "Feedback Trends", path: "/dept/reports/feedback-trends" },
+        { label: "Departmental", path: "/dept/reports/departmental" },
+        { label: "Participation", path: "/dept/reports/participation" },
+        { label: "Workload", path: "/dept/reports/workload" },
+        { label: "Export Center", path: "/dept/exports" },
       ],
+    },
+    {
+      label: "Rosters",
+      basePath: "/dept/tutors",
+      children: [
+        { label: "Tutors", path: "/dept/tutors" },
+        { label: "Students", path: "/dept/students" },
+      ],
+    },
+    {
+      label: "Integrations",
+      basePath: "/dept/integrations",
+      children: [
+        { label: "System Integrations", path: "/dept/integrations" },
+        { label: "DATACORE Sync Log", path: "/account/datacore-log" }, // nếu bạn để log tại /account
+      ],
+    },
+    {
+      label: "Audit",
+      basePath: "/dept/audit",
+      children: [{ label: "Audit & System Logs", path: "/dept/audit" }],
     },
     {
       label: "Profile",
@@ -37,17 +92,19 @@ export default function DeptLayout({
     },
   ];
 
-  const activeParent = navSections.find((group) =>
-    group.children.some((child) => pathname === child.path)
-  );
+  // active nếu current path bắt đầu bằng basePath hoặc bằng path của bất kỳ child
+  const isGroupActive = (groupPath: string, children: { path: string }[]) =>
+    pathname === groupPath ||
+    pathname.startsWith(groupPath + "/") ||
+    children.some((c) => pathname === c.path || pathname.startsWith(c.path + "/"));
 
   return (
     <div className="min-h-screen bg-soft-white-blue">
+      {/* TOP NAV */}
       <nav className="w-full bg-dark-blue h-[60px] flex items-center justify-between px-6 md:px-10">
-        <div
-          className="flex items-center gap-3 cursor-pointer"
-        >
-          <Link href="/dept/reports">
+        {/* Brand */}
+        <div className="flex items-center gap-3">
+          <Link href="/dept">
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-1">
               <Image
                 src="/logo-hcmut.png"
@@ -68,59 +125,63 @@ export default function DeptLayout({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full mr-8">
+        {/* Desktop Menus */}
+        <div className="hidden md:flex items-center gap-6 h-full mr-1">
           {navSections.map((group) => {
-            const isActive = activeParent?.label === group.label;
+            const active = isGroupActive(group.basePath, group.children);
             return (
               <div
                 key={group.label}
                 className="relative group h-full flex items-center"
               >
+                {/* Parent link (không chuyển trang, chỉ để hover) */}
                 <Link
                   href={group.basePath}
                   className={`h-full inline-flex items-center text-sm transition-colors ${
-                    isActive
-                      ? "text-white font-semibold"
-                      : "text-white/80 hover:text-white"
+                    active ? "text-white font-semibold" : "text-white/80 hover:text-white"
                   }`}
                 >
                   {group.label}
                 </Link>
 
-                {isActive && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-[3px] bg-white rounded-full"></div>
+                {/* underline khi active */}
+                {active && (
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-[3px] bg-white rounded-full" />
                 )}
 
+                {/* Dropdown */}
                 <div
                   className="absolute left-1/2 -translate-x-1/2 top-full mt-0
                              hidden group-hover:block
-                             bg-white text-dark-blue min-w-[200px]
+                             bg-white text-dark-blue min-w-[220px]
                              rounded-md shadow-lg border border-black/10 py-2 z-50"
                 >
-                  <div className="absolute -top-2 left-0 w-full h-3"></div>
+                  {/* hover zone buffer */}
+                  <div className="absolute -top-2 left-0 w-full h-3" />
 
                   {group.children.map((child) => {
-                    const isChildActive = pathname === child.path;
                     const isLogout = child.label === "Logout";
-                    
+                    const childActive =
+                      pathname === child.path || pathname.startsWith(child.path + "/");
+
                     if (isLogout) {
                       return (
                         <button
                           key={child.label}
                           onClick={handleLogout}
-                          className="block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
+                          className="block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition text-red-600/80 hover:text-red-700 hover:bg-soft-white-blue"
                         >
                           {child.label}
                         </button>
                       );
                     }
-                    
+
                     return (
                       <Link
                         key={child.path}
                         href={child.path}
                         className={`block px-4 py-2 text-sm whitespace-nowrap transition ${
-                          isChildActive
+                          childActive
                             ? "text-dark-blue font-semibold underline underline-offset-4"
                             : "text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
                         }`}
@@ -136,6 +197,7 @@ export default function DeptLayout({
         </div>
       </nav>
 
+      {/* PAGE CONTENT */}
       <main className="w-full">{children}</main>
     </div>
   );
