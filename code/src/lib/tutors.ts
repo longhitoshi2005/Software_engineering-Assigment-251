@@ -2,7 +2,7 @@ import type { Tutor } from "@/types";
 
 export const TUTORS: Tutor[] = [
   {
-    id: 1,
+    id: "tut-1",
     image:
       "https://ui-avatars.com/api/?name=Nguyen+T.+A&background=0D9488&color=fff&rounded=true&size=128",
     name: "Nguyen T. A.",
@@ -11,7 +11,7 @@ export const TUTORS: Tutor[] = [
     email: "nguyen.an@hcmut.edu.vn",
     role: "Senior student",
     faculty: "Computer Science and Engineering",
-    subject: "CO1001 – Programming Fundamentals",
+    subject: "CO1001 - Programming Fundamentals",
     department: "Computer Science and Engineering",
     match: "High match · 82%",
     slots: [
@@ -38,7 +38,7 @@ export const TUTORS: Tutor[] = [
     ],
   },
   {
-    id: 2,
+    id: "tut-2",
     image:
       "https://ui-avatars.com/api/?name=Pham+Q.+T&background=0D9488&color=fff&rounded=true&size=128",
     name: "Pham Q. T.",
@@ -70,7 +70,7 @@ export const TUTORS: Tutor[] = [
     feedbacks: [{ id: 3, rating: 5, comment: "Explains proofs clearly.", date: new Date().toISOString() }],
   },
   {
-    id: 3,
+    id: "tut-3",
     image:
       "https://ui-avatars.com/api/?name=Truong+Q.+T&background=0D9488&color=fff&rounded=true&size=128",
     name: "Truong Q. T.",

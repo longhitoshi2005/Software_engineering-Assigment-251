@@ -27,7 +27,7 @@ const mock_DATA: MatchingSuggestion[] = [
       note: "Need help debugging pointers and recursion for Lab 3.", 
       preferredTime: "Mon or Wed (afternoon)" 
     },
-    suggestedTutor: { id: "TUT-101", name: "Pham Q. T." },
+    suggestedTutor: { id: "tut-1", name: "Pham Q. T." },
     matchScore: 0.92,
     justification: [
       "Direct availability overlap (Wed 14:00 - 15:30).",
@@ -45,7 +45,7 @@ const mock_DATA: MatchingSuggestion[] = [
       note: "Midterm review, focus on hash tables.",
       preferredTime: "Weekdays (after 17:00)"
     },
-    suggestedTutor: { id: "TUT-102", name: "Tran H. N." },
+    suggestedTutor: { id: "tut-2", name: "Tran H. N." },
     matchScore: 0.78,
     justification: [
       "Availability overlap (Thu 18:00 - 19:30).",
@@ -62,7 +62,7 @@ const mock_DATA: MatchingSuggestion[] = [
       course: "MA1001 - Calculus I", 
       note: "Struggling with derivatives." 
     },
-    suggestedTutor: { id: "TUT-103", name: "Truong Q. Thai" },
+    suggestedTutor: { id: "tut-3", name: "Truong Q. Thai" },
     matchScore: 0.88,
     justification: [
       "Tutor expertise in 'Calculus I & II'.",
@@ -78,7 +78,7 @@ const mock_DATA: MatchingSuggestion[] = [
       course: "EE2002 - Digital Systems", 
       note: "Karnaugh maps." 
     },
-    suggestedTutor: { id: "TUT-104", name: "Nguyen T. A." },
+    suggestedTutor: { id: "tut-4", name: "Nguyen T. A." },
     matchScore: 0.71,
     justification: [
       "Partial availability match (Tutor: Tue AM, Student: Tue PM).",

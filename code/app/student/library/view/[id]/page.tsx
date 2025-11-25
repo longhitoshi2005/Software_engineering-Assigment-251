@@ -6,7 +6,8 @@ import { swalSuccess, swalConfirm, swalError } from "@/lib/swal";
 import { LIBRARY_RESOURCES } from "@/lib/mocks";
 import Link from "next/link";
 import QuestionBankViewer from "@/components/QuestionBankViewer";
-import type { LibraryResource } from "@/types";
+import { LibraryType, LibraryAccessType } from "@/types/library";
+import type { LibraryResource } from "@/types/library";
 
 
 
@@ -87,6 +88,9 @@ export default function ViewLibraryResourcePage() {
   const [loading, setLoading] = useState(true);
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [permissionReason, setPermissionReason] = useState("");
+  const [questionBankContent, setQuestionBankContent] = useState<string | null>(null);
+  const [questionBankSections, setQuestionBankSections] = useState<any[] | null>(null);
+  const [qbLoading, setQbLoading] = useState(false);
   // My library and attachments state (mock)
   const [isInMyLibrary, setIsInMyLibrary] = useState(false);
   const [attachedCourses, setAttachedCourses] = useState<{ id: string; name: string }[]>([]);
@@ -115,6 +119,39 @@ export default function ViewLibraryResourcePage() {
 
     fetchResource();
   }, [params.id, router]);
+
+  useEffect(() => {
+    // If resource is a question bank, try to fetch JSON from public/question-banks/{id}.json
+    if (!resource) return;
+    if (resource.type === LibraryType.QUESTION_BANK) {
+      const url = `/question-banks/${resource.id}.json`;
+      setQbLoading(true);
+      fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error('Not found');
+          return res.json();
+        })
+        .then((data) => {
+          if (!data) return;
+          // support legacy flat content string or structured sections/questions schema
+          if (typeof data.content === 'string') {
+            setQuestionBankContent(data.content);
+            return;
+          }
+
+          if (Array.isArray((data as any).sections)) {
+            const sections = (data as any).sections as Array<any>;
+            setQuestionBankSections(sections);
+            return;
+          }
+        })
+        .catch(() => {
+          // fallback: use inline resource.content if present
+          if (resource.content) setQuestionBankContent(resource.content);
+        })
+        .finally(() => setQbLoading(false));
+    }
+  }, [resource]);
 
   if (loading) {
     return (
@@ -204,7 +241,7 @@ export default function ViewLibraryResourcePage() {
         <div className="bg-white rounded-lg border border-black/5 overflow-hidden">
           {resource.access === "ALLOWED" ? (
             <div className="p-6">
-              {resource.type === "PDF" ? (
+              {resource.type === LibraryType.PDF || !!resource.link ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-dark-blue">Document Viewer</h3>
@@ -254,8 +291,55 @@ export default function ViewLibraryResourcePage() {
                 </div>
                 ) : (
                 // Render Question Bank with interactive viewer component
-                resource.type === "Question Bank" ? (
-                  <QuestionBankViewer content={resource.content || ""} />
+                resource.type === LibraryType.QUESTION_BANK ? (
+                  qbLoading ? (
+                    <div className="p-6 text-center text-sm text-black/60">Loading question bank...</div>
+                  ) : (
+                      qbLoading ? (
+                        <div className="p-6 text-center text-sm text-black/60">Loading question bank...</div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-dark-blue">Question Bank</h3>
+                            <div className="flex items-center gap-2">
+                              {isInMyLibrary ? (
+                                <button
+                                  onClick={async () => {
+                                    const ok = await swalConfirm('Remove from My Library', 'Remove this resource from your library?');
+                                    if (!ok) return;
+                                    setIsInMyLibrary(false);
+                                    setAttachedCourses([]);
+                                    await swalSuccess('Removed', 'Resource removed from your library (mock).');
+                                  }}
+                                  className="px-3 py-1 border rounded-md bg-white text-black text-sm hover:bg-black/5 transition"
+                                >
+                                  Remove from my library
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    setIsInMyLibrary(true);
+                                    await swalSuccess('Added', 'Resource added to your library (mock).');
+                                  }}
+                                  className="px-3 py-1 bg-light-heavy-blue text-white rounded-md text-sm hover:bg-light-blue transition"
+                                >
+                                  Add to my library
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => setShowAttachedModal(true)}
+                                className="px-3 py-1 border rounded-md bg-white text-black text-sm hover:bg-black/5 transition"
+                              >
+                                Attached({attachedCourses.length})
+                              </button>
+                            </div>
+                          </div>
+
+                          <QuestionBankViewer sections={questionBankSections || undefined} content={questionBankContent || resource.content || ""} />
+                        </div>
+                      )
+                    )
                 ) : (
                   <div className="prose prose-sm max-w-none">
                     <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
@@ -267,7 +351,7 @@ export default function ViewLibraryResourcePage() {
             </div>
           ) : (
             <div className="p-6">
-              {resource.type === "PDF" ? (
+              {resource.type === LibraryType.PDF || !!resource.link ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
@@ -338,7 +422,7 @@ export default function ViewLibraryResourcePage() {
                   <button
                     onClick={async () => {
                       // Mock function - does nothing currently
-                      await swalSuccess("Permission request submitted (mockup)");
+                      await swalSuccess("Permission request submitted");
                       setShowPermissionForm(false);
                       setPermissionReason("");
                     }}

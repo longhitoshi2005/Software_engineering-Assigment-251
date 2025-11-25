@@ -1,5 +1,5 @@
 export type Integration = {
-  id: number;
+  id: string;
   name: string;
   description: string;
   status: 'connected' | 'disconnected' | 'pending' | string;

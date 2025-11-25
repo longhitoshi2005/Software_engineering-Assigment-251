@@ -1,1 +1,7 @@
-export type RoleDef = { id: number; name: string; description: string; permissions: string[]; users: number };
+export type RoleDef = {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  users: number
+};

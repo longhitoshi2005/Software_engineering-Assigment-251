@@ -134,8 +134,7 @@ export default function LibraryPage() {
                 <option value="ALL">All</option>
                 <option value="PDF">PDF</option>
                 <option value="Question Bank">Question Bank</option>
-                <option value="Slides">Slides</option>
-                <option value="Internal">Internal</option>
+                <option value="Video">Video</option>
               </select>
             </div>
           </div>
@@ -389,7 +388,7 @@ export default function LibraryPage() {
                 <button
                   onClick={async () => {
                     // Mock function - does nothing currently
-                    await swalSuccess("Permission request submitted (mockup)");
+                    await swalSuccess("Permission request submitted");
                     setShowPermissionForm(false);
                     setPermissionReason("");
                   }}

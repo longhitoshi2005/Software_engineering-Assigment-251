@@ -2,8 +2,8 @@ import type { Tutor } from "@/types/tutors";
 
 export const TUTORS: Tutor[] = [
   {
-    id: "TUT-101",
-    tutorId: "TUT-101",
+    id: "tut-1",
+    tutorId: "tut-1",
     name: "Pham Q. T.",
     fullName: "Pham Quoc Thang",
     faculty: "CSE",
@@ -21,8 +21,8 @@ export const TUTORS: Tutor[] = [
     profileSummary: "Senior tutor for programming fundamentals with a focus on algorithms and C++",
   },
   {
-    id: "TUT-102",
-    tutorId: "TUT-102",
+    id: "tut-2",
+    tutorId: "tut-2",
     name: "Tran H. N.",
     fullName: "Tran Huu Nam",
     faculty: "CSE",
@@ -40,7 +40,7 @@ export const TUTORS: Tutor[] = [
     profileSummary: "Data Structures and algorithms tutor",
   },
   {
-    id: "TUT-103",
+    id: "tut-3",
     name: "Truong Q. Thai",
     fullName: "Truong Quoc Thai",
     faculty: "Math",
@@ -53,7 +53,7 @@ export const TUTORS: Tutor[] = [
     workload: { current: 9, max: 10 },
   },
   {
-    id: "TUT-104",
+    id: "tut-4",
     name: "Nguyen T. A.",
     fullName: "Nguyen Thi An",
     faculty: "EE",

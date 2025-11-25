@@ -19,7 +19,7 @@ const CoordTutorsAvailability: React.FC = () => {
 
   // Map shared TUTORS mock into coordinator view shape
   const tutors: TutorAvail[] = TUTORS.map((t) => ({
-    id: `TUT-${String(t.id).padStart(3, "0")}`,
+    id: `tut-${String(t.id).padStart(3, "0")}`,
     name: t.fullName || t.name || "—",
     faculty: t.faculty?.split(" ")[0] ?? (t.faculty as any) ?? "—",
     subjects: [t.subject ?? "—"],

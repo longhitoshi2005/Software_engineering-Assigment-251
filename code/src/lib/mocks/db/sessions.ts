@@ -1,16 +1,26 @@
 export const RECENT_SESSIONS = [
-  { id: "rs-1", title: "Recursion lab review", date: "2025-10-25" },
+  {
+    id: "rs-1",
+    title: "Recursion lab review",
+    date: "2025-10-25"
+  },
 ];
 
 export const AVAILABLE_COURSES = [
-  { id: "CO1001", name: "Programming Fundamentals" },
-  { id: "MA1001", name: "Calculus I" },
+  {
+    id: "CO1001",
+    name: "Programming Fundamentals"
+  },
+  {
+    id: "MA1001",
+    name: "Calculus I"
+  },
 ];
 
 export const MY_UPCOMING_SESSIONS = [
   {
     id: "UP-1",
-    datetime: "Mon, Oct 27 · 09:00 – 10:30",
+    datetime: "Mon, Oct 27 · 09:00-10:30",
     tutorName: "John Doe",
     course: "CO1001 · Programming Fundamentals",
     mode: "Online",
@@ -21,7 +31,7 @@ export const MY_UPCOMING_SESSIONS = [
 export const MY_COMPLETED_SESSIONS = [
   {
     id: "COMP-1",
-    datetime: "Tue, Oct 26 · 14:00 – 15:30",
+    datetime: "Tue, Oct 26 · 14:00-15:30",
     tutorName: "Pham Quoc Thang",
     course: "MA1001 · Calculus I",
     mode: "In-person",
@@ -36,15 +46,15 @@ export const TUTOR_SESSIONS = [
     id: "SESS-2025-10-27-1400",
     studentName: "Nguyen M. Q. Khanh · 2352525",
     course: "CO1001 · Programming Fundamentals",
-    time: "Wed, Oct 27 · 14:00–15:30 · Room B4-205 / Online",
-    topic: "Recursion & pointer debugging – Lab 03",
+    time: "Wed, Oct 27 · 14:00-15:30 · Room B4-205 / Online",
+    topic: "Recursion & pointer debugging - Lab 03",
     status: "completed",
   },
   {
     id: "SESS-2025-10-26-0900",
     studentName: "Tran H. Minh",
     course: "MA1001 · Calculus I",
-    time: "Tue, Oct 26 · 09:00–10:15 · C2-301",
+    time: "Tue, Oct 26 · 09:00-10:15 · C2-301",
     topic: "Derivative drills for midterm",
     status: "completed",
   },
@@ -52,7 +62,7 @@ export const TUTOR_SESSIONS = [
     id: "SESS-2025-10-26-1630",
     studentName: "Le T. Cam Tu",
     course: "EE2002 · Digital Systems",
-    time: "Tue, Oct 26 · 16:30–18:00 · Lab D1",
+    time: "Tue, Oct 26 · 16:30-18:00 · Lab D1",
     topic: "Timing diagram, FF troubleshooting",
     status: "in-progress",
   },
@@ -61,14 +71,14 @@ export const TUTOR_SESSIONS = [
 export const TUTOR_DASH_SESSIONS = [
   {
     id: "sess-301",
-    datetime: "Mon · 09:00 – 10:30 · B4-205 / Online",
+    datetime: "Mon · 09:00-10:30 · B4-205 / Online",
     student: "Nguyen M. Q. Khanh",
     subject: "CO1001 · Programming Fundamentals",
     status: "CONFIRMED",
   },
   {
     id: "sess-302",
-    datetime: "Tue · 14:00 – 15:30 · Online only",
+    datetime: "Tue · 14:00-15:30 · Online only",
     student: "Le P. T. Hien",
     subject: "CO1002 · Data Structures",
     status: "PENDING",
