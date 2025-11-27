@@ -1,173 +1,183 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SADashboardPage() {
-  const [participation, setParticipation] = useState([]);
+  const router = useRouter();
+
   const [stats, setStats] = useState<any>(null);
-  const [escalations, setEscalations] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ---- LOAD API DATA ----
   useEffect(() => {
     async function loadData() {
-      try {
-        const [
-          participationRes,
-          statsRes,
-          escalationsRes,
-          activitiesRes,
-        ] = await Promise.all([
-          fetch("/api/sa/participation").then((r) => r.json()),
-          fetch("/api/sa/training-credit").then((r) => r.json()),
-          fetch("/api/sa/escalation").then((r) => r.json()),
-          fetch("/api/sa/activity").then((r) => r.json()),
-        ]);
+      const [statsRes, activitiesRes] = await Promise.all([
+        fetch("/api/sa/training-credit").then((r) => r.json()),
+        fetch("/api/sa/activity").then((r) => r.json()),
+      ]);
 
-        setParticipation(participationRes);
-        setStats(statsRes);
-        setEscalations(escalationsRes);
-        setActivities(activitiesRes);
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-      } finally {
-        setLoading(false);
-      }
+      setStats(statsRes);
+      setActivities(activitiesRes);
+      setLoading(false);
     }
 
     loadData();
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 space-y-10">
+    <div className="bg-[#eef2fa] min-h-screen py-6 px-4 md:px-10 space-y-10">
 
-      {/* -------------------- HEADER -------------------- */}
+      {/* ---------------- TOP HEADER TITLE ---------------- */}
       <header>
-        <h1 className="text-3xl font-bold text-dark-blue">Student Affairs Dashboard</h1>
-        <p className="text-black/70 text-sm mt-1 max-w-3xl">
-          Monitor participation, tutoring progress, escalations, and semester training credits.
+        <h1 className="text-3xl font-bold text-[#0b1e49]">Student Affairs Dashboard</h1>
+        <p className="text-sm text-[#6b7280] mt-1">
+          Term 2025-1 • Today: {new Date().toLocaleDateString()}
         </p>
       </header>
 
-      {/* -------------------- SUMMARY CARDS -------------------- */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-
-        <DashboardCard
-          title="Pending Participation"
-          value={participation.length}
-          desc="Records awaiting SA approval."
+      {/* ---------------- PROGRAM OVERVIEW ---------------- */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        
+        <OverviewCard 
+          title="Total Participants"
+          value="342"
+          change="+12% vs Last Term"
         />
 
-        <DashboardCard
-          title="Training Credits Issued"
-          value={stats ? stats.approvedCredits : "..."}
-          desc="This semester."
+        <OverviewCard 
+          title="Eligible Students"
+          value="287"
+          change="+8% vs Last Term"
         />
 
-        <DashboardCard
-          title="Pending Reviews"
-          value={stats ? stats.pendingReviews : "..."}
-          desc="SA validation waiting."
+        <OverviewCard 
+          title="Sessions Completed"
+          value="1456"
+          change="+15% vs Last Term"
         />
 
-        <DashboardCard
-          title="Escalations"
-          value={escalations.length}
-          desc="Cases requiring SA attention."
+        <OverviewCard 
+          title="Avg Feedback Rate"
+          value="89%"
+          change="+3% vs Last Term"
+        />
+      </section>
+
+      {/* ---------------- SYSTEM ALERTS ---------------- */}
+      <section className="bg-white rounded-xl p-6 shadow border border-gray-200">
+        <h2 className="text-lg font-semibold text-[#0b1e49] mb-4">System Alerts</h2>
+
+        <AlertBox 
+          type="warning"
+          message="3 tutors have overbooked sessions this week."
+        />
+
+        <AlertBox 
+          type="info"
+          message="12 students have not submitted session feedback yet."
+        />
+
+        <AlertBox 
+          type="info"
+          message="5 students are near eligibility threshold (need 1 more session)."
+        />
+      </section>
+
+      {/* ---------------- QUICK ACTIONS ---------------- */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+        <QuickActionButton 
+          label="View Participation Report"
+          onClick={() => router.push("/sa/participation")}
+        />
+
+        <QuickActionButton 
+          label="Check Eligibility"
+          onClick={() => router.push("/sa/eligibility")}
+        />
+
+        <QuickActionButton 
+          label="Export Reports"
+          onClick={() => router.push("/sa/export-center")}
         />
 
       </section>
 
-      {/* -------------------- PENDING PARTICIPATION -------------------- */}
-      <section className="bg-white border border-soft-white-blue rounded-xl p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-dark-blue mb-4">Pending Participation</h2>
+      <button
+        onClick={() => router.push("/sa/export-center")}
+        className="w-full md:w-auto bg-[#0b5ed7] hover:bg-[#094db0] text-white px-6 py-3 rounded-lg shadow-md font-medium flex items-center gap-2"
+      >
+        📄 Export Summary Report
+      </button>
 
-        {loading ? (
-          <p className="text-black/60">Loading...</p>
-        ) : participation.length === 0 ? (
-          <p className="text-black/60 text-sm">No pending participation records.</p>
-        ) : (
-          <div className="space-y-3">
-            {participation.map((p: any) => (
-              <div
-                key={p.id}
-                className="p-3 bg-soft-white-blue/40 border border-soft-white-blue rounded-lg"
-              >
-                <p className="text-dark-blue font-medium text-sm">
-                  {p.studentName} — {p.course}
-                </p>
-                <p className="text-xs text-black/60">Tutor: {p.tutor}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* ---------------- RECENT ACTIVITY ---------------- */}
+      <section className="bg-white rounded-xl p-6 shadow border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-[#0b1e49]">Recent Activity</h2>
+          <button className="text-sm text-[#0b5ed7] hover:underline">View All Logs</button>
+        </div>
 
-      {/* -------------------- ESCALATIONS -------------------- */}
-      <section className="bg-white border border-soft-white-blue rounded-xl p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-dark-blue mb-4">Escalations</h2>
-
-        {loading ? (
-          <p className="text-black/60">Loading...</p>
-        ) : (
-          <div className="space-y-3">
-            {escalations.map((e: any) => (
-              <div
-                key={e.id}
-                className="p-3 bg-red-50 border border-red-200 rounded-lg"
-              >
-                <p className="text-sm text-red-800 font-semibold">{e.issue}</p>
-                <p className="text-xs text-black/60">Severity: {e.severity}</p>
-                <p className="text-xs text-black/60">Student ID: {e.studentId}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* -------------------- RECENT ACTIVITIES -------------------- */}
-      <section className="bg-white border border-soft-white-blue rounded-xl p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-dark-blue mb-4">Recent Activities</h2>
-
-        {loading ? (
-          <p className="text-black/60">Loading...</p>
-        ) : (
-          <div className="space-y-3">
-            {activities.map((a: any, index: number) => (
-              <ActivityItem
-                key={index}
-                title={a.title}
-                detail={a.detail}
-                time={a.time}
-              />
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {activities.slice(0, 3).map((a: any, i: number) => (
+            <ActivityCard
+              key={i}
+              title={a.title}
+              time={a.time}
+              by="sa_admin"
+            />
+          ))}
+        </div>
       </section>
 
     </div>
   );
 }
 
-/* -------------------- COMPONENTS -------------------- */
+/* --------------------------------------------------------
+    COMPONENTS
+-------------------------------------------------------- */
 
-function DashboardCard({ title, value, desc }: any) {
+function OverviewCard({ title, value, change }: any) {
   return (
-    <div className="bg-white border border-soft-white-blue rounded-xl p-5 shadow-sm hover:shadow-md transition">
-      <p className="text-sm text-black/60">{title}</p>
-      <h2 className="text-3xl font-semibold text-dark-blue mt-1">{value}</h2>
-      <p className="text-xs text-black/50 mt-1">{desc}</p>
+    <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+      <p className="text-sm text-gray-500">{title}</p>
+      <h2 className="text-3xl font-bold text-[#0b1e49] mt-1">{value}</h2>
+      <p className="text-sm text-green-600 mt-1">{change}</p>
     </div>
   );
 }
 
-function ActivityItem({ title, detail, time }: any) {
+function AlertBox({ message, type }: any) {
+  const styles =
+    type === "warning"
+      ? "bg-yellow-100 border-yellow-300 text-yellow-800"
+      : "bg-blue-100 border-blue-300 text-blue-800";
+
   return (
-    <div className="p-3 bg-soft-white-blue/40 border border-soft-white-blue rounded-lg">
-      <p className="text-sm text-dark-blue font-medium">{title}</p>
-      <p className="text-xs text-black/60">{detail}</p>
-      <p className="text-xs text-black/50 mt-1">{time}</p>
+    <div className={`p-3 rounded-md border mb-2 ${styles}`}>
+      {message}
+    </div>
+  );
+}
+
+function QuickActionButton({ label, onClick }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white border border-gray-300 w-full py-4 rounded-lg shadow hover:bg-gray-100 transition text-[#0b1e49] font-medium"
+    >
+      {label}
+    </button>
+  );
+}
+
+function ActivityCard({ title, time, by }: any) {
+  return (
+    <div className="bg-[#eef1f7] p-4 rounded-lg border border-gray-300">
+      <p className="text-sm font-medium text-[#0b1e49]">{title}</p>
+      <p className="text-xs text-gray-600 mt-1">{time}</p>
+      <p className="text-xs text-gray-500 mt-1">By: {by}</p>
     </div>
   );
 }
