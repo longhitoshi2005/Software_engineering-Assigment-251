@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+cdimport { NextResponse } from 'next/server';
 import { STUDENTS } from '@/lib/mocks';
 
 export async function GET(request: Request) {
