@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const normalizedRole = role.toLowerCase();
     
     // Danh sách quyền hợp lệ (viết thường toàn bộ)
-    const allowedRoles = ['coordinator', 'coordinator lead', 'programadmin', 'admin'];
+    const allowedRoles = ['coordinator', 'coordinator lead', 'programadmin', 'admin' , 'department'];
 
     // Kiểm tra quyền
     const hasPermission = allowedRoles.some((r) => normalizedRole.includes(r));
