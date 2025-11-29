@@ -57,7 +57,14 @@ export default function DeptLayout({
       { label: "Export Center", path: "/dept/exports" },
     ],
   },
-  
+  {
+    label: "Profile",
+    basePath: "/dept/profile",
+    children: [
+      { label: "My profile", path: "/dept/profile" },
+      { label: "Logout", path: "/auth/login" },
+    ],
+  },
 ];
 
 
