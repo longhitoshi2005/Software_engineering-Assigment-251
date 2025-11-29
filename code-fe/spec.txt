@@ -1,0 +1,276 @@
+**Tổng quan**
+- **Mục đích**: Tài liệu này mô tả tất cả trường dữ liệu (fields) và mối quan hệ giữa chúng, dựa trên các định nghĩa trong thư mục `src/types` và ví dụ trong `src/lib/mocks/db`.
+- **Phạm vi**: User/Coordinator, Tutor, Student, Session (slot), Matching/Suggestion, PendingAssign, Role, Notification, System tasks & Audit, Forum threads/replies, Library resources, Export jobs, Integrations, Conflicts, Assignments, Thống kê.
+
+---
+
+**User / Coordinator**
+- **`User`** (từ `src/types/user.ts`):
+	- **`id`**: `string` — khóa định danh người dùng (bắt buộc).
+	- **`name`**: `string` — tên ngắn hoặc display name (bắt buộc).
+	- **`email`**: `string` — email chính (bắt buộc).
+	- **`roles`**: `string[]` — danh sách mã role gán cho user.
+
+- **`Coordinator`** (một dạng user chuyên biệt):
+	- **`id`**: `string` — id của coordinator.
+	- **`fullName`**: `string?` — tên đầy đủ.
+	- **`staffId`**: `string?` — mã nhân viên nếu có.
+	- **`email`**: `string?` — email liên hệ.
+	- **`role`**: `string?` — role chính (ví dụ `Coordinator`).
+	- **`department`**: `string?` — khoa/đơn vị phụ trách.
+
+**Ràng buộc / Ghi chú**:
+- `User.id` là định danh duy nhất cho tất cả các actors (student, tutor, coordinator).
+
+---
+
+**Tutor** (từ `src/types/tutors.ts`, `src/types/tutor.ts` và mock `src/lib/mocks/db/tutors.ts`)
+- **Trường chính**:
+	- **`id`**: `string | number` — khóa định danh (bắt buộc).
+	- **`tutorId`**: `string?` — id dùng trong hệ thống (thường giống `id`).
+	- **`name`**: `string` — tên ngắn (bắt buộc).
+	- **`fullName`**: `string?` — tên đầy đủ.
+	- **`studentId`**: `string?` — nếu tutor đồng thời là student.
+	- **`email`**, **`eduMail`**: `string?` — email liên hệ và email trường.
+	- **`faculty`**, **`department`**: `string?` — khoa hoặc bộ môn.
+	- **`subject`**: `string` — môn chính (bắt buộc trong type mẫu).
+	- **`status`**: `string?` — trạng thái (ví dụ: `Available`, `At Capacity`).
+	- **`slots`**: `{ time: string; mode: string; remaining?: string }[]?` — danh sách khung giờ/slot (ví dụ `Wed 14:00`).
+	- **`fullAvailability`**: `string[]?` — chuỗi mô tả khả năng sẵn có.
+	- **`sessionsCompleted`**: `number?` — số buổi đã hoàn thành.
+	- **`averageRating`**: `number?` — điểm trung bình phản hồi.
+	- **`feedbacks`**: `{ id: number; rating: number; comment: string; date: string }[]?` — phản hồi cụ thể.
+	- **`expertise`**, **`detailedExpertise`**: `string[]? / string?` — chuyên môn.
+	- **`preferences`**, **`detailedPreferences`**: `any? / string?` — sở thích/ưu tiên.
+	- **`workload`**: `{ current: number; max: number }?` — công việc hiện tại và giới hạn.
+	- **`maxLoad`**, **`currentLoad`**: `number?` — tương ứng tổng sức chứa và hiện tại.
+	- **`profileSummary`**: `string?` — tóm tắt hồ sơ.
+
+**Ràng buộc / Ghi chú**:
+- `workload.current <= workload.max` (khi cả hai tồn tại).
+- `slots` dùng để hiển thị khoảng thời gian sẵn có; mỗi slot có `time` (chuỗi) và `mode` (ví dụ `Online`/`In-person`).
+
+---
+
+**Student** (từ `src/types/student.ts` / `src/types/students.ts` và mocks)
+- **Trường chính**:
+	- **`id`**: `string` — id nội bộ (bắt buộc).
+	- **`fullName`**: `string?` — tên đầy đủ.
+	- **`studentId`**: `string?` — mã sinh viên (ví dụ `2351001`).
+	- **`eduMail`**: `string?` — email trường.
+	- **`personalEmail`**: `string?` — email cá nhân.
+	- **`phoneNumber`**: `string?` — số điện thoại.
+	- **`program`**: `string?` — chương trình học.
+	- **`faculty`**: `string?` — khoa.
+	- **`year`**: `number?` — năm học.
+	- **`metadata`**: `Record<string, any>?` — dữ liệu mở rộng tùy ứng dụng.
+
+**Ghi chú**:
+- `Student.id` liên kết tới các entities khác (ví dụ trong `PendingMatch.studentId`, `Session.studentId`).
+
+---
+
+**Session & Slot** (từ `src/types/session.ts` và mocks)
+- **`ModeType`** enum: `ONLINE | IN_PERSON` (giá trị chuỗi `'online'` / `'in-person'`).
+- **`SessionStatusType`** enum: `BOOKED | CANCELLED | COMPLETED | PENDING`.
+- **`SessionSlot`**:
+	- **`id`**: `string` — id slot.
+	- **`start`**: `string` (ISO datetime) — bắt đầu.
+	- **`end`**: `string` (ISO) — kết thúc.
+	- **`mode`**: `ModeType?` — online / in-person.
+	- **`remaining`**: `number?` — chỗ còn lại (nếu áp dụng).
+- **`Session`**:
+	- **`id`**: `string` — id session.
+	- **`studentId`**: `string` — liên kết đến `Student.id`.
+	- **`tutorId`**: `string?` — liên kết tới `Tutor.id` khi đã gán.
+	- **`course`**: `string?` — mã/ký hiệu môn học.
+	- **`topic`**: `string?` — chủ đề buổi học.
+	- **`scheduledAt`**: `string?` — thời gian đã lên lịch (ISO hoặc mô tả).
+	- **`status`**: `SessionStatusType?` — trạng thái hiện tại.
+	- **`slot`**: `SessionSlot?` — slot chi tiết (nếu có).
+	- **`notes`**: `string?` — ghi chú/tutor notes.
+
+**Ghi chú & ràng buộc**:
+- Một `Session` được tạo từ một `Booking` (không hiện diện trong types nhưng ám chỉ), và `slot` phải trùng với availability của tutor khi confirmed.
+- `Session.status` thay đổi theo workflow: `PENDING -> BOOKED -> COMPLETED | CANCELLED`.
+
+---
+
+**Matching / Suggestion** (từ `src/types/matching.ts` và mocks)
+- **`RankedTutor` / `TutorMatch`**:
+	- **`tutorId`**: `string` — id tutor.
+	- **`tutorName`**: `string?` — tên hiển thị (tùy nơi).
+	- **`matchScore` / `score`**: `number` — điểm khớp (phạm vi thường 0..1 hoặc điểm tỉ lệ).
+	- **`justifications` / `rationale`**: `string[]?` — lý do, minh chứng.
+- **`SuggestionShape`**:
+	- **`id`**: `number` — id suggestion.
+	- **`studentId`**: `string` — student liên quan.
+	- **`student`**: `string` — tên student (hiển thị).
+	- **`course`**: `string` — mã môn.
+	- **`suggestedTutorId`**, **`suggestedTutor`**: `string` — tutor gợi ý.
+	- **`score`**: `number` — điểm gợi ý.
+	- **`reason`**: `string` — lý do gợi ý.
+- **`SuggestionContext` / `SuggestionRank`**: chứa danh sách `rankedTutors`, `generatedAt`, optional `prompt`/`explanation` khi gợi ý do AI.
+
+**Quan hệ**:
+- `SuggestionShape.studentId` liên kết đến `Student.id`.
+- `SuggestionShape.suggestedTutorId` liên kết đến `Tutor.id`.
+
+---
+
+**Pending match / Manual assignment**
+- **`PendingMatch`** (từ `src/types/pendingAssign.ts`):
+	- **`id`**: `string`.
+	- **`studentId`**: `string`.
+	- **`studentName`**: `string`.
+	- **`course`**: `string`.
+	- **`suggestedTutor`**: `string` (tên/ID tuỳ implement).
+	- **`reason`**: `string` — lý do tạo mục chờ.
+	- **`priority`**: enum `'HIGH' | 'NORMAL' | 'LOW'`.
+	- **`createdAgo`**: `string` — hiển thị thời gian tương đối (ví dụ `2h`).
+	- **`source`**: `'AI' | 'StudentRequest' | 'System' | 'Tutor'`.
+	- **`preferredSlot`**: `string?` — slot ưa thích nếu có.
+
+**Luồng**:
+- `PendingMatch` là nguồn để job auto-assign hoặc coordinator xử lý thủ công (ManualAssignment).
+
+---
+
+**Role & Permissions** (từ `src/types/roles.ts` và mocks `roles.ts`)
+- **`RoleDef`**:
+	- **`id`**: `string` — id role.
+	- **`name`**: `string` — tên hiển thị.
+	- **`description`**: `string` — mô tả.
+	- **`permissions`**: `string[]` — danh sách key permission (ví dụ `assign_tutors`).
+	- **`users`**: `number` — số user thuộc role (mock field, tính toán hoặc thống kê).
+
+**Quan hệ**:
+- Users gán role bằng `User.roles` (mảng mã role).
+
+---
+
+**Notification** (từ `src/types/notification.ts`)
+- **`Notification`**:
+	- **`id`**: `string`.
+	- **`userId`**: `string` — người nhận (liên kết `User.id`).
+	- **`title`**: `string`.
+	- **`body`**: `string?`.
+	- **`read`**: `boolean?` — trạng thái đã đọc.
+	- **`createdAt`**: `string?` — ISO timestamp.
+	- **`metadata`**: `Record<string, any>?` — dữ liệu bổ sung (ví dụ `sessionId`).
+
+---
+
+**System Tasks & AuditLog** (từ `src/types/systemTasks.ts` và mocks)
+- **`SystemTask`**:
+	- **`id`**: `number`.
+	- **`name`**: `string`.
+	- **`status`**: `string` — `running|completed|pending|failed`.
+	- **`progress`**: `number` — phần trăm tiến độ (0..100).
+	- **`lastRun`**, **`nextRun`**: `string` — timestamps / human readable.
+- **`AuditLog`**:
+	- **`id`**: `string`.
+	- **`actorId`**: `string` — id người thực hiện.
+	- **`actorRole`**: `string?` — role của actor.
+	- **`action`**: `string` — mô tả hành động (ví dụ `Assigned tutor to student`).
+	- **`resource`**: `string?` — đối tượng liên quan (ví dụ `ManualAssignment`).
+	- **`details`**: `Record<string, any> | string` — payload chi tiết.
+	- **`createdAt`**: `string` — ISO timestamp.
+
+**Quy tắc**:
+- Mọi hành động có quyền hạn nên tạo một `AuditLog` (ghi nhận thay đổi quan trọng).
+
+---
+
+**Forum (Threads / Replies / Attachments)** (từ `src/lib/mocks/db/threads.ts` và `src/types/forum` giả định)
+- **`Thread`** (mock fields): `id`, `title`, `author` (id), `authorRole`, `course`, `createdAt`, `replies` (count), `status` (enum), `pinned` (boolean), `content`, `reported?`.
+- **`Reply`** (mock): `id`, `threadId`, `author`, `role`, `createdAt`, `content`, `upvotes`, `downvotes`, `userVote`, `valueVote`, `parentCommentId?`, `attachments?`.
+- **`Attachment`** fields (mock): `id`, `type` (`IMAGE|VIDEO|FILE`), `url`, `filename`, `size`.
+
+**Quan hệ**:
+- Thread 1..* Reply; Reply có thể `parentCommentId` để tạo cây thảo luận.
+
+---
+
+**Library resources** (từ `src/lib/mocks/db/library.ts` và `src/types/library`)
+- **`LibraryResource`** (mock fields):
+	- **`id`**: `string`.
+	- **`title`**: `string`.
+	- **`author`**: `string`.
+	- **`link`**: `string?` — URL file nếu có.
+	- **`type`**: enum (`PDF`, `QUESTION_BANK`, ...).
+	- **`department`**: `string`.
+	- **`source`**: enum (`HCMUT`, `USER`, ...).
+	- **`access`**: enum (`ALLOWED`, `RESTRICTED`).
+	- **`content`**: `string?` — nội dung thuần khi không có file.
+
+---
+
+**Export jobs** (từ `src/lib/mocks/db/exportJobs.ts`)
+- **`ExportJob`**:
+	- **`id`**: `string`.
+	- **`name`**: `string`.
+	- **`type`**: `string` (ví dụ `CSV`, `PDF`, `Excel`, `JSON`).
+	- **`status`**: `string` (`processing|completed|failed`).
+	- **`created`**: `string` (timestamp / human readable).
+	- **`size`**: `string` — human readable size hoặc status text.
+	- **`downloadUrl`**: `string?` | `null`.
+
+---
+
+**Integrations** (từ `src/lib/mocks/db/integrations.ts`)
+- **`Integration`** (mock): `id`, `name`, `description`, `status` (`connected|disconnected|pending`), `lastSync`.
+
+---
+
+**Conflicts** (từ `src/lib/mocks/db/conflicts.ts` và types giả định)
+- **`Conflict`** (mock fields):
+	- **`id`**: `string`.
+	- **`type`**: `string` (ví dụ `TUTOR_DOUBLE_BOOKING`, `ROOM_CONFLICT`).
+	- **`tutor`**: `{ id, name } | null` — tutor liên quan.
+	- **`slot`**: `string` — mô tả slot (ví dụ `Wed 14:00 · Room B4-205`).
+	- **`details`**: `string`.
+	- **`severity`**: `string` (`HIGH|MEDIUM|LOW`).
+	- **`requests`**: mảng `ConflictRequest` (mỗi phần tử có `id`, `studentId`, `studentName`, `course`, `preferredSlot`, `status`).
+
+**Luồng xử lý**:
+- Conflicts thu thập các yêu cầu xung đột và dùng bởi coordinator để reschedule hoặc reassign.
+
+---
+
+**Assignments (ManualAssignment)**
+- `ManualAssignment` (từ `src/types/matching.ts` hoặc `src/types/assignments`) có các trường: `id`, `studentId`, `tutorId`, `coordinatorId`, `reason`, `suggestionContext?`, `createdAt?`.
+
+---
+
+**Thống kê (Stats)** (từ `src/types/stats.ts` và mocks)
+- **`TutorStat`**: `{ name: string; faculty: string; active: number; max: number; utilization: number }`.
+- **`PerformanceMetric`**: `{ metric: string; value: string; trend: string; change: string }`.
+- **`WorkloadRow`**: `{ coordinator: string; assignedSessions: number; resolvedConflicts: number; pendingRequests: number; avgResponseTime: string }`.
+
+---
+
+**Các mối quan hệ chính (tóm tắt)**
+- **Student ↔ Session**: `Session.studentId -> Student.id` (1 session gắn 1 student).
+- **Tutor ↔ Session**: `Session.tutorId -> Tutor.id` (nếu đã gán tutor).
+- **Tutor ↔ AvailabilitySlot/slots**: `Tutor.slots` / `Tutor.availability` chứa các slot; slot không nên overlap cho cùng tutor (business constraint).
+- **PendingMatch / Suggestion ↔ Student / Tutor**: `PendingMatch.studentId -> Student.id`, `suggestedTutor -> Tutor.id` (tương ứng hoặc tên hiển thị).
+- **ManualAssignment ↔ AuditLog**: mọi assignment/resolve phải tạo `AuditLog` entry.
+- **Thread / Reply**: Thread có nhiều Reply; Reply thuộc Thread và có thể nested via `parentCommentId`.
+
+---
+
+**Ràng buộc nghiệp vụ quan trọng (ghi chú triển khai)**
+- Availability slots cho một tutor không được overlap — kiểm tra tại thời điểm tạo/ cập nhật slot.
+- Booking/confirmation chỉ khi slot đang ở trạng thái hold/available.
+- Session reschedule/cancel tuân theo cửa sổ thời gian cấu hình (ví dụ: cấm reschedule trong <X> giờ trước session).
+- Feedback chỉ có thể chỉnh sửa trong một cửa sổ sau-session (ví dụ 24–72 giờ) — enforced tại layer service.
+- ReportRun/ExportJob là immutable sau khi `status==='completed'`.
+- Mọi hành động quyền cao (assign, resolve conflict, run report, change integrations) phải ghi `AuditLog`.
+
+---
+
+**Chú thích cuối**
+- Tài liệu này dựa trên các `type` thực tế tìm thấy trong `src/types` và dữ liệu mẫu ở `src/lib/mocks/db`.
+- Một số trường dùng kiểu `any` hoặc chưa chuẩn hóa (ví dụ `preferences`, `availability`, `metadata`) nên được chuẩn hóa nếu cần cho backend/DB production.
+

@@ -1,0 +1,155 @@
+## API surface (Authentication, Profile, Academic master data)
+
+Mục đích: các endpoint tối thiểu cần để
+- Đăng nhập / xác thực người dùng
+- Lấy thông tin profile/role để hiển thị giao diện theo quyền
+- Cung cấp dữ liệu master (semester, department, courses) để populate dropdown / filters
+
+Ghi chú chung:
+- Tất cả endpoint trả JSON.
+- Header authorization: `Authorization: Bearer <access_token>` (nếu dùng JWT/OAuth token).
+- Các ví dụ dưới đây là mẫu; backend và frontend phải thống nhất key names (ví dụ `clarity` enum values là `VERY_CLEAR`,...)
+
+-----------------------------
+Authentication (Identity & Access)
+-----------------------------
+
+POST /auth/login
+- Mục đích: xử lý đăng nhập SSO (hoặc exchange code -> token). Trả về access token + user info.
+- Auth: public
+- Request JSON (example):
+  {
+    "sso_token": "<sso-token-or-code>"
+  }
+- Response 200 (example):
+  {
+    "access_token": "eyJhb...",
+    "token_type": "bearer",
+    "expires_in": 3600,
+    "user": {
+      "id": "user-123",
+      "email": "alice@example.com",
+      "full_name": "Nguyen Thi A",
+      "roles": ["STUDENT"]
+    }
+  }
+- Errors:
+  - 400 Bad Request: missing/invalid SSO code
+  - 401 Unauthorized: SSO validation failed
+
+GET /auth/me
+- Mục đích: Lấy thông tin user hiện tại (dùng khi frontend khởi tạo và cần render UI theo role)
+- Auth: Bearer required
+- Request: Header `Authorization: Bearer <token>`
+- Response 200 (example):
+  {
+    "id": "user-123",
+    "email": "alice@example.com",
+    "full_name": "Nguyen Thi A",
+    "roles": ["STUDENT"],
+    "tutor_profile": null
+  }
+- Nếu user là tutor, `tutor_profile` trả object:
+  {
+    "user_id": "user-456",
+    "expertise_tags": ["Data Structures","Algorithms"],
+    "max_workload": 10,
+    "current_workload": 2
+  }
+
+POST /auth/refresh
+- Mục đích: làm mới token (nếu dùng refresh tokens)
+- Auth: refresh token header / cookie
+- Request JSON: { "refresh_token": "<refresh>" }
+- Response 200: { "access_token": "...", "expires_in": 3600 }
+
+-----------------------------
+Users & Profile Management
+-----------------------------
+
+GET /users/profile
+- Mục đích: Lấy profile chi tiết cho người dùng hiện tại (student hoặc tutor)
+- Auth: Bearer
+- Response 200 example:
+  {
+    "id": "user-123",
+    "email": "alice@example.com",
+    "full_name": "Nguyen Thi A",
+    "avatar_url": "/media/avatars/..",
+    "roles": ["STUDENT"],
+    "tutor_profile": null
+  }
+
+PATCH /users/profile
+- Mục đích: Cập nhật thông tin profile (bio, avatar_url, personal contact fields)
+- Auth: Bearer
+- Request JSON (example):
+  {
+    "full_name": "Nguyen Thi A",
+    "avatar_url": "/media/avatars/new.jpg",
+    "bio": "I am a 2nd year CSE student"
+  }
+- Response 200: updated profile object (same shape as GET)
+- Notes: file uploads (avatar) may use `POST /users/profile/avatar` multipart endpoint instead.
+
+PATCH /tutors/me/settings
+- Mục đích: Tutor cập nhật chuyên môn / workload
+- Auth: Bearer, role=TUTOR
+- Request JSON (example):
+  {
+    "expertise_tags": ["Recursion","Pointers"],
+    "max_workload": 12
+  }
+- Response 200: updated `tutor_profile` object
+
+-----------------------------
+Academic Master Data (Read-only)
+-----------------------------
+
+GET /academic/semesters
+- Mục đích: Lấy danh sách học kỳ (để populate filters)
+- Auth: optional (can be public) — but prefer auth so we can show active term per user
+- Query params: none (or `?active=true` to filter active only)
+- Response 200 example:
+  [
+    { "id": "2025-1", "name": "2025 Term 1", "start_date": "2025-02-01", "end_date": "2025-06-01", "is_active": true },
+    { "id": "2024-2", "name": "2024 Term 2", "start_date": "2024-09-01", "end_date": "2024-12-20", "is_active": false }
+  ]
+
+GET /academic/departments
+- Mục đích: Lấy danh sách khoa
+- Response 200 example:
+  [ { "id": "cse", "name": "Computer Science & Engineering" }, { "id": "ee", "name": "Electrical & Electronics" } ]
+
+GET /academic/courses
+- Mục đích: Lấy danh sách môn học; frontend hỗ trợ search/filter theo department
+- Query params:
+  - `?q=<search-term>` (search by code or name)
+  - `?department=<deptId>`
+  - `?term=<termId>` (optional)
+- Response 200 example:
+  [
+    { "code": "CO1001", "name": "Programming Fundamentals", "department": "cse", "term": "2025-1", "credits": 3 },
+    { "code": "MA1001", "name": "Calculus I", "department": "math", "term": "2025-1", "credits": 3 }
+  ]
+
+-----------------------------
+Errors / conventions
+-----------------------------
+- All responses use standard HTTP codes (200, 201, 204, 400, 401, 403, 404, 422, 500).
+- Error response JSON shape (example):
+  { "error": "invalid_request", "message": "sso_token missing" }
+- Validate and return 422 for validation errors with details where helpful.
+
+-----------------------------
+Integration notes for Frontend
+-----------------------------
+- Store `access_token` in memory / secure cookie (avoid localStorage unless necessary). Use `Authorization: Bearer` header for API calls.
+- On app boot:
+  1. Try to read cached token.
+  2. Call `GET /auth/me` to verify and load `user` + `tutor_profile`.
+  3. Fetch master data: `/academic/departments`, `/academic/semesters`, `/academic/courses?q=&department=`.
+- For selects/dropdowns, cache master-data in memory and refresh periodically (daily) or on user action.
+
+---
+If bạn muốn, tôi có thể: 1) tạo các route frontend wrappers (`src/lib/api.ts`) để gọi những endpoint này, hoặc 2) tạo mock handlers trong `src/lib/mocks` để frontend phát triển offline.

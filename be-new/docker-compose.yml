@@ -1,0 +1,33 @@
+services:
+  # 1. DATABASE SERVICE
+  db:
+    image: mongo:6.0
+    container_name: tutor_db
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # 2. BACKEND APP SERVICE
+  backend:
+    build: .
+    container_name: tutor_backend
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/code/app
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@db:27017
+      - DATABASE_NAME=tutor_system_db
+      - SECRET_KEY=thay_doi_chuoi_nay_khi_deploy
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+volumes:
+  mongo_data:

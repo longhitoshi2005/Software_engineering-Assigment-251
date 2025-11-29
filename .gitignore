@@ -36,6 +36,7 @@ Thumbs.db
 node_modules/
 dist/
 .env
+.venv
 
 # GitHub Codespaces workspace
 .devcontainer/
