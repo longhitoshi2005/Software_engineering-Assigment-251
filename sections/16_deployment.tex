@@ -5,3 +5,50 @@
 \begin{center}
 \textbf{Figure 12:} Deployment Diagram 
 \end{center}
+
+
+
+\subsection{Deployment View Description}
+
+The deployment diagram in Figure~\ref{fig:deployment} illustrates the physical runtime environment of the Tutor Support System, showing how software components are deployed across servers and how they communicate through secure protocols.
+
+\subsubsection*{End User Client Layer}
+End users interact with the system through a web browser, represented as an \texttt{<<artifact>>}. All communication between the client and the system is performed using HTTPS, ensuring encrypted and secure transmission of requests.
+
+\subsubsection*{Firewall Layer}
+All incoming and outgoing traffic is filtered through a Firewall. This firewall protects the internal infrastructure by allowing only authorized protocols (e.g., HTTPS on port 443) and restricting unauthorized access from external networks.
+
+\subsubsection*{Web Server Layer}
+The Web Server hosts two primary components:
+\begin{itemize}
+    \item \textbf{Nginx}: Operates as a reverse proxy and static file server, routing incoming HTTPS requests to appropriate backend services.
+    \item \textbf{WebApp (frontend + REST clients)}: Contains the user interface and the REST clients responsible for communicating with backend services and external systems.
+\end{itemize}
+
+The Web Application artifact is deployed onto this node according to the \textit{Web Deployment Specification}, which defines the packaging and deployment procedures. Communication from the Web Server to backend services uses secure protocols depending on the target module.
+
+\subsubsection*{Database Server Layer}
+The Database Server hosts the Oracle database, which stores persistent application data such as user profiles, tutor availability, booking information, session records, and system logs. Communication between the Web Server and the Oracle database is performed over TCP/IP to ensure consistent and reliable data transactions.
+
+\subsubsection*{Service Backend Layer}
+This layer hosts two supporting infrastructure services:
+\begin{itemize}
+    \item \textbf{Mail Server}: Responsible for sending notification emails, including booking confirmations and schedule updates.
+    \item \textbf{State Service}: Provides in-memory storage for transient system state such as session data, caching, and booking locks.
+\end{itemize}
+Communication between the Web Server and this backend layer is secured through HTTPS.
+
+\subsubsection*{HCMUT Infrastructure Layer}
+The system integrates with a set of university-provided external services:
+\begin{itemize}
+    \item \textbf{HCMUT\_SSO}: Provides authentication services through SAML/OAuth-based single sign-on.
+    \item \textbf{HCMUT\_LIBRARY}: Provides access to academic resources and related materials.
+    \item \textbf{HCMUT\_DATACORE}: Supplies institutional user data for identity synchronization and academic information retrieval.
+\end{itemize}
+
+These services are accessed from the Web Server using REST APIs over HTTPS, ensuring secure and authenticated data exchange.
+
+\subsubsection*{Overall System Communication Flow}
+When a user interacts with the system, requests are sent from the Browser through the Firewall to the Web Server. Nginx forwards these requests to the WebApp component, which communicates with internal backend services (database, mail, state). For authentication or user data synchronization, the WebApp interacts with the HCMUT\_SSO and HCMUT\_DATACORE services. When academic materials are needed, the system retrieves them from the HCMUT\_LIBRARY service. Processed responses are returned through the Firewall back to the user's browser over HTTPS.
+
+This deployment architecture ensures security, scalability, maintainability, and seamless integration with university services.
