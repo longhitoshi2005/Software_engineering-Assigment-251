@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface User {
   id: string;
@@ -11,66 +11,96 @@ interface User {
 }
 
 export default function AdminRBACPage() {
-  const [users] = useState<User[]>([
-    {
-      id: "2352525",
-      name: "2352525 – Khanh",
-      email: "2352525@hcmut.edu.vn",
-      roles: ["Student"],
-      source: "DATACORE",
-    },
-    {
-      id: "coord01",
-      name: "coord01 – Student Affairs",
-      email: "coord01@hcmut.edu.vn",
-      roles: ["Coordinator", "StudentAffairs"],
-      source: "Local Override",
-    },
-    {
-      id: "admin",
-      name: "admin",
-      email: "admin@hcmut.edu.vn",
-      roles: ["ProgramAdmin"],
-      source: "Local",
-    },
-    {
-      id: "2353001",
-      name: "2353001 – Minh",
-      email: "2353001@hcmut.edu.vn",
-      roles: ["Student", "Tutor"],
-      source: "Local Override",
-    },
-    {
-      id: "dept01",
-      name: "dept01 – CS Dept Chair",
-      email: "dept01@hcmut.edu.vn",
-      roles: ["DepartmentChair"],
-      source: "DATACORE",
-    },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [message, setMessage] = useState("");
-  const [showModal, setShowModal] = useState<{ type: string; user: User | null }>({
-    type: "",
-    user: null,
-  });
 
+  const [showModal, setShowModal] = useState<{
+    type: "view" | "assign" | "remove" | "";
+    user: User | null;
+  }>({ type: "", user: null });
+
+  const [roleInput, setRoleInput] = useState("");
+
+  // ---------------------------------------------
+  // MESSAGE POPUP
+  // ---------------------------------------------
   const showMessage = (text: string) => {
     setMessage(text);
     setTimeout(() => setMessage(""), 3000);
   };
 
-  const mockSyncRoles = () => {
+  // ---------------------------------------------
+  // LOAD USERS FROM BACKEND
+  // ---------------------------------------------
+  const loadUsers = async () => {
+    const res = await fetch("/api/rbac/users");
+    setUsers(await res.json());
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // ---------------------------------------------
+  // SYNC FROM DATACORE
+  // ---------------------------------------------
+  const syncRoles = async () => {
+    await fetch("/api/rbac/sync", { method: "POST" });
     showMessage("Role sync from DATACORE started (mock).");
   };
 
+  // ---------------------------------------------
+  // ASSIGN ROLE
+  // ---------------------------------------------
+  const assignRole = async () => {
+    if (!showModal.user || !roleInput.trim()) return;
+
+    await fetch("/api/rbac/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: showModal.user.id,
+        role: roleInput.trim(),
+      }),
+    });
+
+    await loadUsers();
+    showMessage("Role assigned.");
+    setRoleInput("");
+    closeModal();
+  };
+
+  // ---------------------------------------------
+  // REMOVE ROLE
+  // ---------------------------------------------
+  const removeRole = async (role: string) => {
+    if (!showModal.user) return;
+
+    await fetch("/api/rbac/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: showModal.user.id,
+        role,
+      }),
+    });
+
+    await loadUsers();
+    showMessage("Role removed.");
+    closeModal();
+  };
+
+  // ---------------------------------------------
+  // MODALS
+  // ---------------------------------------------
   const openUserModal = (user: User) => {
     setShowModal({ type: "view", user });
   };
 
   const openAssignRoleModal = (user: User) => {
     setShowModal({ type: "assign", user });
+    setRoleInput("");
   };
 
   const openRemoveRoleModal = (user: User) => {
@@ -81,6 +111,9 @@ export default function AdminRBACPage() {
     setShowModal({ type: "", user: null });
   };
 
+  // ---------------------------------------------
+  // FILTER USERS
+  // ---------------------------------------------
   const filteredUsers = users.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -88,11 +121,19 @@ export default function AdminRBACPage() {
       u.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getSourceColor = (source: string) => {
-    if (source === "DATACORE") return "text-blue-700 bg-blue-50";
-    if (source === "Local Override") return "text-orange-700 bg-orange-50";
+  const getSourceColor = (src: string) => {
+    if (src === "DATACORE") return "text-blue-700 bg-blue-50";
+    if (src === "Local Override") return "text-orange-700 bg-orange-50";
     return "text-gray-700 bg-gray-50";
   };
+
+  if (!users.length) {
+    return (
+      <div className="p-4 text-sm text-black/60">
+        Loading users…
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
@@ -100,8 +141,7 @@ export default function AdminRBACPage() {
       <header>
         <h1 className="text-2xl md:text-3xl font-bold text-dark-blue">Users & Roles</h1>
         <p className="text-sm md:text-base text-black/70 mt-1">
-          Inspect current roles (Student, Tutor, Coordinator, Department Chair, Program Admin) and
-          local overrides.
+          Inspect current roles (Student, Tutor, Coordinator, Department Chair, Program Admin) and local overrides.
         </p>
       </header>
 
@@ -124,7 +164,7 @@ export default function AdminRBACPage() {
             className="flex-1 px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:border-light-light-blue focus:bg-white transition"
           />
           <button
-            onClick={mockSyncRoles}
+            onClick={syncRoles}
             className="px-4 py-2 bg-light-heavy-blue text-white rounded text-sm font-medium hover:bg-[#00539a] transition"
           >
             Sync roles from DATACORE (mock)
@@ -142,9 +182,7 @@ export default function AdminRBACPage() {
             <tr className="border-b border-soft-white-blue">
               <th className="text-left py-2 px-3 font-semibold text-dark-blue">User</th>
               <th className="text-left py-2 px-3 font-semibold text-dark-blue">Email / ID</th>
-              <th className="text-left py-2 px-3 font-semibold text-dark-blue">
-                Current Role(s)
-              </th>
+              <th className="text-left py-2 px-3 font-semibold text-dark-blue">Current Role(s)</th>
               <th className="text-left py-2 px-3 font-semibold text-dark-blue">Source</th>
               <th className="text-left py-2 px-3 font-semibold text-dark-blue">Actions</th>
             </tr>
@@ -162,20 +200,27 @@ export default function AdminRBACPage() {
                   key={user.id}
                   className="border-b border-soft-white-blue hover:bg-soft-white-blue"
                 >
-                  <td className="py-3 px-3 font-medium text-dark-blue">{user.name}</td>
-                  <td className="py-3 px-3 text-black/70">{user.email}</td>
+                  <td className="py-3 px-3 font-medium text-dark-blue">
+                    {user.name}
+                  </td>
+
+                  <td className="py-3 px-3 text-black/70">
+                    {user.email}
+                  </td>
+
                   <td className="py-3 px-3">
                     <div className="flex flex-wrap gap-1">
-                      {user.roles.map((role) => (
+                      {user.roles.map((r) => (
                         <span
-                          key={role}
+                          key={r}
                           className="px-2 py-0.5 rounded text-xs font-medium bg-soft-white-blue text-dark-blue border border-soft-white-blue"
                         >
-                          {role}
+                          {r}
                         </span>
                       ))}
                     </div>
                   </td>
+
                   <td className="py-3 px-3">
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium ${getSourceColor(
@@ -185,6 +230,7 @@ export default function AdminRBACPage() {
                       {user.source}
                     </span>
                   </td>
+
                   <td className="py-3 px-3">
                     <div className="flex gap-2">
                       <button
@@ -223,36 +269,56 @@ export default function AdminRBACPage() {
               {showModal.type === "assign" && `Add Role to ${showModal.user.name}`}
               {showModal.type === "remove" && `Remove Role from ${showModal.user.name}`}
             </h3>
+
             <div className="text-sm text-black/70 mb-4 space-y-2">
+              {/* View */}
               {showModal.type === "view" && (
                 <>
-                  <p>
-                    <strong>Email:</strong> {showModal.user.email}
-                  </p>
-                  <p>
-                    <strong>ID:</strong> {showModal.user.id}
-                  </p>
-                  <p>
-                    <strong>Roles:</strong> {showModal.user.roles.join(", ")}
-                  </p>
-                  <p>
-                    <strong>Source:</strong> {showModal.user.source}
-                  </p>
+                  <p><strong>Email:</strong> {showModal.user.email}</p>
+                  <p><strong>ID:</strong> {showModal.user.id}</p>
+                  <p><strong>Roles:</strong> {showModal.user.roles.join(", ")}</p>
+                  <p><strong>Source:</strong> {showModal.user.source}</p>
                 </>
               )}
+
+              {/* Assign */}
               {showModal.type === "assign" && (
-                <p>
-                  This is a mock UI. In production, you would select a role (Tutor, Coordinator,
-                  etc.) and assign it to {showModal.user.name}.
-                </p>
+                <>
+                  <p>Select or type a role to assign:</p>
+                  <input
+                    value={roleInput}
+                    onChange={(e) => setRoleInput(e.target.value)}
+                    placeholder="e.g., Tutor, Coordinator"
+                    className="w-full px-3 py-2 border border-soft-white-blue rounded bg-soft-white-blue focus:outline-none focus:bg-white"
+                  />
+                  <button
+                    onClick={assignRole}
+                    className="mt-2 px-4 py-2 bg-green-600 text-white rounded text-sm font-medium"
+                  >
+                    Add role
+                  </button>
+                </>
               )}
+
+              {/* Remove */}
               {showModal.type === "remove" && (
-                <p>
-                  This is a mock UI. In production, you would select one of the current roles (
-                  {showModal.user.roles.join(", ")}) and remove it from {showModal.user.name}.
-                </p>
+                <>
+                  <p>Select a role to remove:</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {showModal.user.roles.map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => removeRole(role)}
+                        className="px-3 py-1 text-xs rounded bg-red-100 text-red-700 border border-red-300 hover:bg-red-200"
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
+
             <button
               onClick={closeModal}
               className="px-4 py-2 bg-light-heavy-blue text-white rounded text-sm font-medium hover:bg-[#00539a] transition"

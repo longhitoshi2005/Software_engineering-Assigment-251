@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Task {
   name: string;
@@ -16,44 +16,12 @@ interface TaskHistoryItem {
 }
 
 export default function AdminSystemTasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      name: "Daily DB cleanup",
-      schedule: "Everyday at 03:00",
-      lastRun: "2025-11-02 03:01",
-      status: "Success",
-    },
-    {
-      name: "Incremental backup",
-      schedule: "Every 15 minutes",
-      lastRun: "2025-11-02 10:00",
-      status: "Success",
-    },
-    {
-      name: "Full backup",
-      schedule: "Everyday at 01:00",
-      lastRun: "2025-11-02 01:02",
-      status: "Success",
-    },
-  ]);
-
-  const [history, setHistory] = useState<TaskHistoryItem[]>([
-    {
-      time: "2025-11-02 03:01",
-      task: "Daily DB cleanup",
-      result: "OK (12 MB freed)",
-    },
-    {
-      time: "2025-11-02 01:02",
-      task: "Full backup",
-      result: "OK (stored in dc-hcmut-bucket-02)",
-    },
-    {
-      time: "2025-11-01 03:01",
-      task: "Daily DB cleanup",
-      result: "OK (9 MB freed)",
-    },
-  ]);
+  // ===============================
+  // STATE
+  // ===============================
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [history, setHistory] = useState<TaskHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [message, setMessage] = useState("");
 
@@ -62,63 +30,67 @@ export default function AdminSystemTasksPage() {
     setTimeout(() => setMessage(""), 3000);
   };
 
-  const mockRun = (taskType: string) => {
-    const taskNames = {
-      cleanup: "Daily DB cleanup",
-      backup: "Full backup",
-    };
-    const taskName = taskNames[taskType as keyof typeof taskNames];
+  // ===============================
+  // LOAD DATA
+  // ===============================
+  const loadTasks = async () => {
+    const res = await fetch("/api/admin/system-tasks");
+    setTasks(await res.json());
+  };
 
+  const loadHistory = async () =>    {
+    const res = await fetch("/api/admin/system-tasks/history");
+    setHistory(await res.json());
+  };
+
+  const loadAll = async () => {
+    setLoading(true);
+    await Promise.all([loadTasks(), loadHistory()]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  // ===============================
+  // RUN TASK
+  // ===============================
+  const runTask = async (taskName: string) => {
     showMessage(`Running ${taskName}...`);
 
-    // Update task status to Running
-    setTasks(
-      tasks.map((t) =>
-        t.name === taskName ? { ...t, status: "Running" as const } : t
+    // Immediately mark as Running in UI
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.name === taskName ? { ...t, status: "Running" } : t
       )
     );
 
-    // Simulate task completion
-    setTimeout(() => {
-      const now = new Date().toLocaleString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    // Call API
+    await fetch("/api/admin/system-tasks/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskName }),
+    });
 
-      setTasks(
-        tasks.map((t) =>
-          t.name === taskName
-            ? { ...t, status: "Success" as const, lastRun: now }
-            : t
-        )
-      );
+    // Reload updated data
+    await loadAll();
 
-      const result =
-        taskType === "cleanup"
-          ? "OK (8 MB freed)"
-          : "OK (stored in dc-hcmut-bucket-02)";
-
-      setHistory([
-        {
-          time: now,
-          task: taskName,
-          result,
-        },
-        ...history,
-      ]);
-
-      showMessage(`${taskName} completed successfully.`);
-    }, 2000);
+    showMessage(`${taskName} completed successfully.`);
   };
 
+  // ===============================
+  // UTILS
+  // ===============================
   const getStatusColor = (status: string) => {
     if (status === "Success") return "text-green-700 bg-green-50";
     if (status === "Failed") return "text-red-700 bg-red-50";
-    return "text-blue-700 bg-blue-50";
+    return "text-blue-700 bg-blue-50"; // Running
   };
+
+  if (loading) {
+    return <div className="p-4 text-sm text-black/60">Loading system tasks...</div>;
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
@@ -137,25 +109,26 @@ export default function AdminSystemTasksPage() {
         </div>
       )}
 
-      {/* Tasks List */}
+      {/* Scheduled Tasks */}
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-dark-blue">Scheduled Tasks</h2>
           <div className="flex gap-2">
             <button
-              onClick={() => mockRun("cleanup")}
+              onClick={() => runTask("Daily DB cleanup")}
               className="px-3 py-1.5 bg-soft-white-blue border border-soft-white-blue rounded text-xs font-medium text-dark-blue hover:bg-blue-50 transition"
             >
               Run cleanup now
             </button>
             <button
-              onClick={() => mockRun("backup")}
+              onClick={() => runTask("Full backup")}
               className="px-3 py-1.5 bg-soft-white-blue border border-soft-white-blue rounded text-xs font-medium text-dark-blue hover:bg-blue-50 transition"
             >
               Run backup now
             </button>
           </div>
         </div>
+
         <div className="space-y-3">
           {tasks.map((task) => (
             <div
@@ -165,9 +138,14 @@ export default function AdminSystemTasksPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-dark-blue">{task.name}</h3>
-                  <p className="text-xs text-black/60 mt-1">Schedule: {task.schedule}</p>
-                  <p className="text-xs text-black/60">Last run: {task.lastRun}</p>
+                  <p className="text-xs text-black/60 mt-1">
+                    Schedule: {task.schedule}
+                  </p>
+                  <p className="text-xs text-black/60">
+                    Last run: {task.lastRun}
+                  </p>
                 </div>
+
                 <span
                   className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                     task.status
@@ -184,6 +162,7 @@ export default function AdminSystemTasksPage() {
       {/* Task History */}
       <section className="bg-white border border-soft-white-blue rounded-lg p-5 overflow-x-auto">
         <h2 className="text-base font-semibold text-dark-blue mb-3">Task History</h2>
+
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-soft-white-blue">
@@ -192,15 +171,16 @@ export default function AdminSystemTasksPage() {
               <th className="text-left py-2 px-3 font-semibold text-dark-blue">Result</th>
             </tr>
           </thead>
+
           <tbody>
-            {history.map((item, idx) => (
+            {history.map((h, idx) => (
               <tr
                 key={idx}
                 className="border-b border-soft-white-blue hover:bg-soft-white-blue"
               >
-                <td className="py-3 px-3 text-black/60 whitespace-nowrap">{item.time}</td>
-                <td className="py-3 px-3 font-medium text-dark-blue">{item.task}</td>
-                <td className="py-3 px-3 text-black/70">{item.result}</td>
+                <td className="py-3 px-3 text-black/60 whitespace-nowrap">{h.time}</td>
+                <td className="py-3 px-3 font-medium text-dark-blue">{h.task}</td>
+                <td className="py-3 px-3 text-black/70">{h.result}</td>
               </tr>
             ))}
           </tbody>
