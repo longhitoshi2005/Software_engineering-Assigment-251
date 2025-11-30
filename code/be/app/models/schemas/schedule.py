@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional
 from app.models.internal.session import SessionStatus, RequestType # Assumed Status Enum
+from app.models.enums.location import LocationMode
 
 
 # --- NEGOTIATION SCHEMAS ---
@@ -11,7 +12,7 @@ class NegotiationResponse(BaseModel):
     """Data representing the counter-proposal sent by the Tutor."""
     new_start_time: Optional[datetime] = None
     new_end_time: Optional[datetime] = None
-    new_is_online: Optional[bool] = None
+    new_mode: Optional[LocationMode] = None
     new_location: Optional[str] = None # New physical location or meeting link
     tutor_message: str
 
@@ -22,7 +23,7 @@ class NegotiationCreateRequest(BaseModel):
     """Payload for Tutor to propose a change (counter-offer) to the student's initial request."""
     new_start_time: Optional[datetime] = None
     new_end_time: Optional[datetime] = None
-    new_is_online: Optional[bool] = None
+    new_mode: Optional[LocationMode] = None
     new_location: Optional[str] = None
     message: str # Message accompanying the counter-offer
 
@@ -35,6 +36,7 @@ class AvailabilityCreateRequest(BaseModel):
     """Payload for Tutor to create a new free time slot."""
     start_time: datetime
     end_time: datetime
+    allowed_modes: List[LocationMode] = [LocationMode.ONLINE]
 
 class AvailabilityResponse(BaseModel):
     """Response model for a tutor's available time slot."""
@@ -42,6 +44,7 @@ class AvailabilityResponse(BaseModel):
     tutor_id: str
     start_time: datetime
     end_time: datetime
+    allowed_modes: List[LocationMode]
     is_booked: bool
 
 # --- SESSION SCHEMAS ---
@@ -54,8 +57,8 @@ class BookingRequest(BaseModel):
     course_code: str # Subject the student wants to learn
     start_time: datetime
     end_time: datetime
-    is_online: bool = True
-    location: Optional[str] = None # Student's preferred physical location or initial link
+    mode: LocationMode = LocationMode.ONLINE
+    location: Optional[str] = None # Meeting link (ONLINE) or specific room (CAMPUS_1/2)
 
     session_request_type: RequestType = RequestType.ONE_ON_ONE # Defines the intended enrollment structure
 
@@ -92,7 +95,7 @@ class SessionResponse(BaseModel):
     
     start_time: datetime
     end_time: datetime
-    is_online: bool
+    mode: LocationMode
     location: Optional[str] = None # Final meeting link or physical location
     
     status: SessionStatus

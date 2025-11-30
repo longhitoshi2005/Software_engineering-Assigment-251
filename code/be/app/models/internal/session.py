@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from .tutor_profile import TutorProfile
 from .student_profile import StudentProfile
 from app.models.external.course import Course
+from ..enums.location import LocationMode
 
 # --- ENUMS ---
 
@@ -34,8 +35,8 @@ class NegotiationProposal(BaseModel):
     """
     new_start_time: Optional[datetime] = None
     new_end_time: Optional[datetime] = None
-    new_is_online: Optional[bool] = None
-    new_location: Optional[str] = None # Link meet HOẶC địa điểm
+    new_mode: Optional[LocationMode] = None
+    new_location: Optional[str] = None # Link meet (ONLINE) HOẶC phòng cụ thể (CAMPUS_1/2)
     
     tutor_message: str
     
@@ -58,8 +59,8 @@ class TutorSession(Document):
     course: Link[Course]
     start_time: datetime
     end_time: datetime
-    is_online: bool
-    location: Optional[str] = None # Địa điểm (Offline) hoặc Link (Online)
+    mode: LocationMode  # ONLINE, CAMPUS_1, or CAMPUS_2
+    location: Optional[str] = None # Meeting link (ONLINE) hoặc phòng cụ thể (CAMPUS_1/2)
     
     # 3. Capacity & Publicity (Được set cứng khi CONFIRMED)
     max_capacity: int = 1

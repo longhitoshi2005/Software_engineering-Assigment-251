@@ -35,8 +35,8 @@ Thumbs.db
 # Node / npm
 node_modules/
 dist/
-.env
-.venv
+*.env
+*.venv
 
 # GitHub Codespaces workspace
 .devcontainer/

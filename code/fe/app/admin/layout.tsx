@@ -3,6 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import api from "@/lib/api";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { Role } from "@/lib/role";
 
 export default function AdminLayout({
   children,
@@ -12,10 +15,17 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = () => {
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
-    router.push("/auth/login");
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("username");
+      localStorage.removeItem("userRole");
+      router.push("/auth/login");
+    }
   };
 
   const navSections = [
@@ -154,5 +164,6 @@ export default function AdminLayout({
 
       <main className="w-full">{children}</main>
     </div>
+    </ProtectedRoute>
   );
 }

@@ -3,8 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import api from "@/lib/api";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { Role } from "@/lib/role";
 
-export default function StudentLayout({
+function StudentLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -12,12 +15,20 @@ export default function StudentLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = () => {
-    // Clear user session
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userRole");
-    // Redirect to login
-    router.push("/auth/login");
+  const handleLogout = async () => {
+    try {
+      // Call backend logout API to clear cookie
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Clear user session
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("username");
+      localStorage.removeItem("userRole");
+      // Redirect to login
+      router.push("/auth/login");
+    }
   };
 
   const navSections = [
@@ -167,5 +178,13 @@ export default function StudentLayout({
 
       <main className="w-full">{children}</main>
     </div>
+  );
+}
+
+export default function StudentLayoutWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute requiredRoles={[Role.STUDENT]}>
+      <StudentLayout>{children}</StudentLayout>
+    </ProtectedRoute>
   );
 }

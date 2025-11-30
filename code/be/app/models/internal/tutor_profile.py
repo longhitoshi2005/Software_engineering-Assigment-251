@@ -61,7 +61,11 @@ class TutorProfile(Document):
     # 5. Stats
     stats: TutorStats = TutorStats()
     
-    # 6. Metadata (Using UTC for consistency)
+    # 6. Personal Avatar (Tutor can upload custom avatar separate from university photo)
+    avatar_url: Optional[str] = None
+    avatar_public_id: Optional[str] = None  # Cloudinary public ID for deletion
+    
+    # 7. Metadata (Using UTC for consistency)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 
 from beanie import Document, Indexed, Link
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, ValidationInfo
 
 # Import Master Data
 from .major import Major 
@@ -45,7 +45,7 @@ class StaffStatus(str, Enum):
 
 class ContactInfo(BaseModel):
     phone_number: Optional[str] = None
-    email_edu: Annotated[str, Indexed(unique=True)] 
+    email_edu: Annotated[str, Indexed(unique=True)]  # Must always be username + '@hcmut.edu.vn'
     email_personal: Optional[str] = None
 
 class AcademicStatus(BaseModel):
@@ -100,6 +100,20 @@ class HCMUT_SSO(Document):
 
     class Settings:
         name = "hcmut_sso_simulation"
+
+    @field_validator('contact')
+    @classmethod
+    def validate_email_edu_consistency(cls, contact: ContactInfo, info: ValidationInfo) -> ContactInfo:
+        """Ensure email_edu is always username@hcmut.edu.vn"""
+        username = info.data.get('username')
+        if username:
+            expected_email = f"{username}@hcmut.edu.vn"
+            if contact.email_edu != expected_email:
+                raise ValueError(
+                    f"email_edu must be '{expected_email}' (derived from username '{username}'). "
+                    f"Got '{contact.email_edu}' instead."
+                )
+        return contact
 
     @property
     def is_student_active(self) -> bool:

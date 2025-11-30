@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, UploadFile, File
 from typing import List
 
 # Import Dependencies & Models
@@ -11,11 +11,14 @@ from app.models.schemas.tutor import (
     TutorResponse,
     TutorUpdateRequest,
     AssignTutorRequest,
-    AssignTutorResponse
+    AssignTutorResponse,
+    TutorSearchRequest,
+    TutorSearchResult
 )
 
 # Import Service
 from app.services.tutor_service import TutorService
+from app.services.storage_service import StorageService
 
 router = APIRouter(prefix="/tutors", tags=["Tutors"])
 
@@ -53,8 +56,27 @@ async def search_tutors(
 ):
     """
     Retrieves a list of available Tutors, optionally filtered by subject expertise.
+    (Legacy endpoint - use /search for advanced filtering)
     """
     return await TutorService.search_tutors(subject)
+
+
+@router.post("/search", response_model=List[TutorSearchResult])
+async def search_tutors_advanced(
+    search_params: TutorSearchRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Advanced tutor search with multiple filters:
+    - subject: Course code or name
+    - department: Department/faculty name
+    - tags: Expertise keywords
+    - mode: Location mode (ONLINE, CAMPUS_1, CAMPUS_2)
+    - available_from/available_to: Availability time range
+    
+    Returns tutors with their closest available time slot.
+    """
+    return await TutorService.search_tutors_with_availability(search_params)
 
 
 @router.get("/me", response_model=TutorResponse)
@@ -95,3 +117,22 @@ async def update_my_tutor_profile(
     Note: Course expertise update is restricted to Manager assignment only.
     """
     return await TutorService.update_tutor_profile(current_user, payload)
+
+
+@router.post("/me/avatar", response_model=dict)
+async def upload_tutor_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
+):
+    """
+    [Tutor Only] Upload a custom avatar image (JPG, PNG) to Cloudinary.
+    Deletes the old avatar if it exists to save storage space.
+    """
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only image files (JPG, PNG, GIF, WEBP) are allowed"
+        )
+    
+    return await TutorService.upload_avatar(current_user, file)

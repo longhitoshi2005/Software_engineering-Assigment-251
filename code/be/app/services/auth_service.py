@@ -13,11 +13,15 @@ class AuthService:
         Handles the full login flow: Authenticates against SSO cache, 
         syncs user data, provisions internal accounts/profiles, and returns 
         the internal User ID as the access token.
+        
+        Args:
+            username: HCMUT username only (e.g., 'khanh.nguyenmanh')
+            password: User's password
         """
         
         # --- STEP 1: AUTHENTICATION (Verify against SSO Cache) ---
         
-        # 1.1 Find the SSO record (simulating external server lookup)
+        # 1.1 Find the SSO record by username
         sso_record = await HCMUT_SSO.find_one(HCMUT_SSO.username == username)
         
         if not sso_record:

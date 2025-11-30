@@ -11,7 +11,11 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # Copy toàn bộ source code vào container
 COPY ./app /code/app
 COPY ./.env /code/.env
-COPY ./tests /code/tests
+COPY ./scripts /code/scripts
+
+# Copy startup script
+COPY ./docker-entrypoint.sh /code/docker-entrypoint.sh
+RUN chmod +x /code/docker-entrypoint.sh
 
 # Lệnh chạy server (Hot reload enabled)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+ENTRYPOINT ["/code/docker-entrypoint.sh"]

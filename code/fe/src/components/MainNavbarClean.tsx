@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { getClientRole, Role } from "@/lib/role";
+import api from "@/lib/api";
 
 export default function DynamicNavbar() {
   const pathname = usePathname();
@@ -33,12 +34,22 @@ export default function DynamicNavbar() {
     }
   }, [pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userRole");
-    } catch (e) {}
-    router.push("/auth/login");
+      // Call backend logout API to clear cookie
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Clear user session
+      try {
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("username");
+        localStorage.removeItem("userRole");
+      } catch (e) {}
+      // Redirect to login
+      router.push("/auth/login");
+    }
   };
 
   const navGroups: Array<any> = [];

@@ -57,19 +57,26 @@ class StudentProfile(Document):
     # 1. Liên kết 1-1 với SSO
     user: Annotated[Link[User], Indexed(unique=True)]
     
-    # 2. Cài đặt Tìm kiếm (Search Preferences)
+    # 2. Profile Information
+    bio: Optional[str] = None # Short introduction about learning goals and interests
+    
+    # 3. Cài đặt Tìm kiếm (Search Preferences)
     # Những setting này sẽ được điền sẵn (pre-fill) khi sinh viên tìm Tutor
     default_learning_mode: LearningMode = LearningMode.OFFLINE
     interested_topics: List[str] = [] # Tag quan tâm: ["AI", "Web Dev", "IELTS"]
     
-    # 3. Nhu cầu học tập hiện tại (The "Demand")
+    # 4. Nhu cầu học tập hiện tại (The "Demand")
     # Danh sách các môn đang gặp khó khăn và cần tìm Tutor
     learning_goals: List[LearningGoal] = []
     
-    # 4. Thống kê & Gamification
+    # 5. Thống kê & Gamification
     stats: StudentStats = StudentStats()
     
-    # 5. Metadata
+    # 6. Personal Avatar (Student can upload custom avatar separate from university photo)
+    avatar_url: Optional[str] = None
+    avatar_public_id: Optional[str] = None  # Cloudinary public ID for deletion
+    
+    # 7. Metadata
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

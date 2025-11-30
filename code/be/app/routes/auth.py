@@ -16,7 +16,8 @@ async def login(data: LoginRequest, response: Response):
         httponly=True,   
         secure=False,    
         samesite="lax",
-        max_age=60 * 60 * 24
+        max_age=60 * 60 * 24,
+        path="/"
     )
     
     return {"message": "Login successful"}

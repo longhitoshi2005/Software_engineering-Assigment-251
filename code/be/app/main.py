@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.db.mongodb import init_db
-from app.routes import auth, users, academic, tutors, availability, sessions, feedback, attendance, reports, notifications, library
+from app.routes import auth, users, academic, tutors, students, availability, sessions, feedback, attendance, reports, notifications, library
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,11 +16,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include Routers
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(academic.router)
 app.include_router(tutors.router)
+app.include_router(students.router)
 app.include_router(availability.router)
 app.include_router(sessions.router)
 app.include_router(feedback.router)

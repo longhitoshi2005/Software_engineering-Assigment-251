@@ -3,6 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import api from "@/lib/api";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { Role } from "@/lib/role";
 
 export default function DeptLayout({
   children,
@@ -12,13 +15,20 @@ export default function DeptLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = () => {
-    // mock clear session
+  const handleLogout = async () => {
     try {
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("userRole");
-    } catch {}
-    router.push("/auth/login");
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // mock clear session
+      try {
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("username");
+        localStorage.removeItem("userRole");
+      } catch {}
+      router.push("/auth/login");
+    }
   };
 
   // ===== NAV MODEL (đã bổ sung đầy đủ) =====
@@ -176,5 +186,6 @@ export default function DeptLayout({
       {/* PAGE CONTENT */}
       <main className="w-full">{children}</main>
     </div>
+    </ProtectedRoute>
   );
 }

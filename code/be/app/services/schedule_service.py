@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import HTTPException, status
 from beanie import PydanticObjectId
+from beanie.operators import In
 
 # Models
 from app.models.internal.user import User
@@ -75,7 +76,7 @@ class ScheduleService:
         # Check existing sessions (block during negotiation too)
         overlap_session = await TutorSession.find_one(
             TutorSession.tutor.id == tutor_id,
-            TutorSession.status.in_([
+            In(TutorSession.status, [
                 SessionStatus.CONFIRMED, 
                 SessionStatus.WAITING_FOR_TUTOR, 
                 SessionStatus.WAITING_FOR_STUDENT
@@ -166,6 +167,7 @@ class ScheduleService:
             tutor=tutor_profile,
             start_time=payload.start_time,
             end_time=payload.end_time,
+            allowed_modes=payload.allowed_modes,
             is_booked=False
         )
         await slot.save()
@@ -175,6 +177,7 @@ class ScheduleService:
             tutor_id=str(tutor_profile.id),
             start_time=slot.start_time,
             end_time=slot.end_time,
+            allowed_modes=slot.allowed_modes,
             is_booked=slot.is_booked
         )
     
@@ -200,6 +203,7 @@ class ScheduleService:
                 tutor_id=tutor_id,
                 start_time=s.start_time,
                 end_time=s.end_time,
+                allowed_modes=s.allowed_modes,
                 is_booked=s.is_booked
             ) for s in slots
         ]
@@ -240,18 +244,19 @@ class ScheduleService:
                 "Tutor or Course not found"
             )
 
-        # Validate availability slot covers requested time
+        # Validate availability slot covers requested time and mode
         valid_slot = await AvailabilitySlot.find_one(
             AvailabilitySlot.tutor.id == tutor.id,
             AvailabilitySlot.start_time <= payload.start_time,
             AvailabilitySlot.end_time >= payload.end_time,
-            AvailabilitySlot.is_booked == False
+            AvailabilitySlot.is_booked == False,
+            {"allowed_modes": payload.mode}  # Check if mode is supported
         )
         
         if not valid_slot:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, 
-                "Tutor is not available at this time (No matching slot)."
+                "Tutor is not available at this time or doesn't support the requested location mode."
             )
 
         # Create session with student's preferences
@@ -261,7 +266,7 @@ class ScheduleService:
             course=course,
             start_time=payload.start_time,
             end_time=payload.end_time,
-            is_online=payload.is_online,
+            mode=payload.mode,
             location=payload.location,
             session_request_type=payload.session_request_type,
             status=SessionStatus.WAITING_FOR_TUTOR
@@ -335,7 +340,7 @@ class ScheduleService:
         session.proposal = NegotiationProposal(
             new_start_time=payload.new_start_time,
             new_end_time=payload.new_end_time,
-            new_is_online=payload.new_is_online,
+            new_mode=payload.new_mode,
             new_location=payload.new_location,
             tutor_message=payload.message,
             new_max_capacity=payload.new_max_capacity,  # Tutor's proposed capacity
@@ -433,8 +438,8 @@ class ScheduleService:
             await ScheduleService._split_availability_slot(original_slot, session)
 
             # Apply location/mode changes from proposal
-            if session.proposal.new_is_online is not None:
-                session.is_online = session.proposal.new_is_online
+            if session.proposal.new_mode is not None:
+                session.mode = session.proposal.new_mode
             if session.proposal.new_location:
                 session.location = session.proposal.new_location
             
@@ -811,7 +816,7 @@ class ScheduleService:
             proposal_res = NegotiationResponse(
                 new_start_time=session.proposal.new_start_time,
                 new_end_time=session.proposal.new_end_time,
-                new_is_online=session.proposal.new_is_online,
+                new_mode=session.proposal.new_mode,
                 new_location=session.proposal.new_location,
                 tutor_message=session.proposal.tutor_message,
                 new_max_capacity=session.proposal.new_max_capacity,
@@ -833,7 +838,7 @@ class ScheduleService:
             course_name=session.course.name,
             start_time=session.start_time,
             end_time=session.end_time,
-            is_online=session.is_online,
+            mode=session.mode,
             location=session.location,
             status=session.status,
             proposal=proposal_res,

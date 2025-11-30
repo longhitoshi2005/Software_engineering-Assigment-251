@@ -1,62 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Swal from 'sweetalert2';
 
 import { Role, setClientRole } from "@/lib/role";
+import api from "@/lib/api";
+import { LoginRequest, LoginResponse } from "@/types/auth";
 
-// Test accounts (single-role system). Each account has exactly one Role and a redirect.
-const TEST_ACCOUNTS: Record<string, { password: string; role: Role; redirect: string }> = {
-  "student@hcmut.edu.vn": { password: "student", role: Role.STUDENT, redirect: "/student/dashboard" },
-  "tutor@hcmut.edu.vn": { password: "tutor", role: Role.TUTOR, redirect: "/tutor/dashboard" },
-  "coord@hcmut.edu.vn": { password: "coord", role: Role.COORDINATOR, redirect: "/coord/dashboard" },
-  "dept@hcmut.edu.vn": { password: "dept", role: Role.DEPARTMENT_CHAIR, redirect: "/dept" },
-  "sa@hcmut.edu.vn": { password: "sa", role: Role.STUDENT_AFFAIRS, redirect: "/sa/dashboard" },
-  "admin@hcmut.edu.vn": { password: "admin", role: Role.PROGRAM_ADMIN, redirect: "/admin/dashboard" },
+// Test accounts mapping for role assignment (frontend only for demo)
+// In production, roles would come from the backend
+// USERNAME ONLY - email_edu is always derived as username@hcmut.edu.vn
+const ROLE_MAPPING: Record<string, { role: Role; redirect: string }> = {
+  "lan.tran": { role: Role.STUDENT, redirect: "/student/dashboard" },
+  "student_gioi": { role: Role.STUDENT, redirect: "/student/dashboard" },
+  "tuan.pham": { role: Role.TUTOR, redirect: "/tutor/dashboard" },
+  "head.cse": { role: Role.DEPARTMENT_CHAIR, redirect: "/dept" },
 };
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Check if redirected due to authentication error
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'not_authenticated') {
+      Swal.fire({
+        title: 'Authentication Required',
+        text: 'Please log in first to access this page.',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#1e3a8a',
+      });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const account = TEST_ACCOUNTS[email as keyof typeof TEST_ACCOUNTS];
-
-    if (!account) {
-      setError("Invalid email or password");
-      setLoading(false);
-      return;
-    }
-
-    if (account.password !== password) {
-      setError("Invalid email or password");
-      setLoading(false);
-      return;
-    }
-
-    // Store user info in localStorage (in production, use proper auth)
-    localStorage.setItem("userEmail", email);
     try {
-      // Persist single-role only
-      localStorage.setItem('userRole', account.role);
-      setClientRole(account.role);
-    } catch (e) {
-      // ignore write errors in strict environments
-    }
+      // Call backend login API
+      const loginData: LoginRequest = {
+        username: username,
+        password: password,
+      };
 
-    // Redirect based on assigned role
-    router.push(account.redirect);
+      const response: LoginResponse = await api.post("/auth/login", loginData);
+
+      // Get role mapping for this user (in production, roles would come from backend)
+      const roleInfo = ROLE_MAPPING[username];
+
+      if (!roleInfo) {
+        setError("Account role not configured");
+        setLoading(false);
+        return;
+      }
+
+      // Store user info in localStorage
+      // email_edu is ALWAYS derived from username
+      localStorage.setItem("userEmail", `${username}@hcmut.edu.vn`);
+      localStorage.setItem("username", username);
+      try {
+        localStorage.setItem('userRole', roleInfo.role);
+        setClientRole(roleInfo.role);
+      } catch (e) {
+        // ignore write errors in strict environments
+      }
+
+      // Redirect based on assigned role
+      router.push(roleInfo.redirect);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,16 +126,16 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-dark-blue mb-1">
-                  Email Address
+                <label htmlFor="username" className="block text-sm font-medium text-dark-blue mb-1">
+                  Username
                 </label>
                 <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 border border-black/10 rounded-md focus:outline-none focus:ring-2 focus:ring-light-heavy-blue text-sm"
-                  placeholder="your.email@hcmut.edu.vn"
+                  placeholder="lan.tran"
                   required
                 />
               </div>
@@ -143,31 +167,26 @@ export default function LoginPage() {
 
             {/* Test Accounts Info */}
             <div className="mt-6 p-4 bg-soft-white-blue rounded-lg border border-black/10">
-              <p className="text-xs font-semibold text-dark-blue mb-2">Test Accounts:</p>
+              <p className="text-xs font-semibold text-dark-blue mb-2">Test Accounts (Username / Password):</p>
               <div className="space-y-1 text-xs text-black/70">
                 <div className="flex justify-between">
-                  <span>Student:</span>
-                  <span className="font-mono">student@hcmut.edu.vn / student</span>
+                  <span>Student (Lan):</span>
+                  <span className="font-mono">lan.tran / 123</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tutor:</span>
-                  <span className="font-mono">tutor@hcmut.edu.vn / tutor</span>
+                  <span>Student (Gioi):</span>
+                  <span className="font-mono">student_gioi / 123</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Coordinator:</span>
-                  <span className="font-mono">coord@hcmut.edu.vn / coord</span>
+                  <span>Lecturer (Tuấn):</span>
+                  <span className="font-mono">tuan.pham / 123</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Department:</span>
-                  <span className="font-mono">dept@hcmut.edu.vn / dept</span>
+                  <span>Department Head:</span>
+                  <span className="font-mono">head.cse / 123</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Student Affairs:</span>
-                  <span className="font-mono">sa@hcmut.edu.vn / sa</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Admin:</span>
-                  <span className="font-mono">admin@hcmut.edu.vn / admin</span>
+                <div className="text-xs text-black/50 mt-2 pt-2 border-t border-black/10">
+                  🔒 Email is auto-generated as username@hcmut.edu.vn
                 </div>
               </div>
             </div>

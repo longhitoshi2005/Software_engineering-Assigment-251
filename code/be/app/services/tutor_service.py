@@ -1,5 +1,6 @@
 from typing import List, Optional
-from fastapi import HTTPException, status
+from datetime import datetime, timezone
+from fastapi import HTTPException, status, UploadFile
 from beanie import PydanticObjectId, Link
 from beanie.operators import In
 from bson import ObjectId
@@ -8,9 +9,11 @@ from bson.dbref import DBRef
 # Models
 from app.models.internal.user import User
 from app.models.internal.tutor_profile import TutorProfile, TutorStatus, TeachingSubject
+from app.models.internal.availability import AvailabilitySlot
 from app.models.external.course import Course
 from app.models.enums.role import UserRole
 from app.models.enums.university_identities import UniversityIdentity
+from app.models.enums.location import LocationMode
 
 # Schemas
 from app.models.schemas.tutor import (
@@ -18,8 +21,14 @@ from app.models.schemas.tutor import (
     TutorUpdateRequest, 
     AssignTutorResponse, 
     TeachingSubjectResponse, 
-    TutorStatsResponse
+    TutorStatsResponse,
+    TutorSearchRequest,
+    TutorSearchResult,
+    ClosestAvailability
 )
+
+# Services
+from app.services.storage_service import StorageService
 
 class TutorService:
     
@@ -30,7 +39,8 @@ class TutorService:
     async def _map_to_response(profile: TutorProfile) -> TutorResponse:
         """
         Converts the DB Document to the standard API Response Schema.
-        Performs necessary link fetching for display information (User, Course details).
+        Performs necessary link fetching for display information (User, Course details, SSO).
+        Returns complete profile data for all three sections (Identity, Management, Expertise).
         """
         # 1. Fetch User Info (Internal User)
         if isinstance(profile.user, Link):
@@ -38,10 +48,14 @@ class TutorService:
         
         user_internal = profile.user
 
-        # 2. Fetch SSO Info (External Identity) to determine Lecturer status
+        # 2. Fetch SSO Info (External Identity) to get full profile data
         if isinstance(user_internal.sso_info, Link):
             await user_internal.fetch_link(User.sso_info)
         sso_info = user_internal.sso_info
+        
+        if not sso_info:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                              detail="SSO data missing for tutor")
         
         # 3. Map Subjects (Fetch Course names/codes)
         mapped_subjects = []
@@ -59,27 +73,41 @@ class TutorService:
                     description=sub.description
                 ))
         
-        # 4. Build Response
+        # 4. Determine lecturer status and academic major
         is_lecturer_flag = (sso_info.identity_type == UniversityIdentity.LECTURER)
+        academic_major = sso_info.academic.major if sso_info.academic else None
 
-        # Note: Stats update logic happens in FeedbackService, here we just read the current state
+        # 5. Build Complete Response (All Sections)
         return TutorResponse(
+            # TutorProfile IDs
             id=str(profile.id),
             user_id=str(user_internal.id),
+            
+            # Section I: Identity & Authority (Read-only)
+            full_name=user_internal.full_name,
+            sso_id=sso_info.identity_id,
+            email_edu=user_internal.email_edu,
+            academic_major=academic_major,
+            is_lecturer=is_lecturer_flag,
+            
+            # Section II: Management & Contact (Editable)
             display_name=profile.display_name,
-            avatar_url=user_internal.avatar_url,
             bio=profile.bio,
             tags=profile.tags,
-            status=profile.status.value, # Return string value of Enum
+            status=profile.status.value,
+            email_personal=user_internal.email_personal,
+            phone_number=sso_info.contact.phone_number if sso_info.contact else None,
+            
+            # Section III: Expertise & Reputation (Read-only)
             subjects=mapped_subjects,
             stats=TutorStatsResponse(
                 average_rating=profile.stats.average_rating,
                 total_feedbacks=profile.stats.total_feedbacks,
                 total_sessions=profile.stats.total_sessions,
-                total_students=profile.stats.total_students, # Assuming this field exists in TutorStats
-                response_rate=profile.stats.response_rate # Assuming this field exists in TutorStats
+                total_students=profile.stats.total_students,
+                response_rate=profile.stats.response_rate
             ),
-            is_lecturer=is_lecturer_flag
+            avatar_url=profile.avatar_url  # Personal avatar from TutorProfile
         )
 
     # ==========================================
@@ -176,27 +204,263 @@ class TutorService:
             return None
         return await TutorService._map_to_response(profile)
 
+    @staticmethod
+    async def search_tutors_with_availability(search_params: TutorSearchRequest) -> List[TutorSearchResult]:
+        """
+        Advanced tutor search with availability filtering.
+        Returns tutors matching the search criteria with their closest available time slot.
+        """
+        # Base query: Find AVAILABLE tutors
+        query = TutorProfile.find(TutorProfile.status == TutorStatus.AVAILABLE)
+        
+        # Filter by tags (expertise keywords)
+        if search_params.tags:
+            # Match any of the provided tags
+            query = query.find({"tags": {"$in": search_params.tags}})
+        
+        # Get initial results
+        profiles = await query.skip(search_params.offset).limit(search_params.limit).to_list()
+        
+        # Filter by subject/course (Python-side)
+        if search_params.subject:
+            course = await Course.find_one(
+                {"$or": [
+                    {"code": {"$regex": search_params.subject, "$options": "i"}},
+                    {"name": {"$regex": search_params.subject, "$options": "i"}}
+                ]}
+            )
+            if course:
+                profiles = [
+                    p for p in profiles 
+                    if any(sub.course_ref.id == course.id for sub in p.teaching_subjects)
+                ]
+        
+        # Filter by department (Python-side via SSO data)
+        if search_params.department:
+            filtered_profiles = []
+            for p in profiles:
+                if isinstance(p.user, Link):
+                    await p.fetch_link(TutorProfile.user)
+                user = p.user
+                if isinstance(user.sso_info, Link):
+                    await user.fetch_link(User.sso_info)
+                sso = user.sso_info
+                
+                # Check if tutor has academic info with major
+                if sso and sso.academic and sso.academic.major_link:
+                    # Fetch the major to get faculty information
+                    major = sso.academic.major_link
+                    if isinstance(major, Link):
+                        from app.models.external.major import Major
+                        major = await major.fetch()
+                    
+                    if major and major.faculty:
+                        # Fetch faculty name
+                        faculty = major.faculty
+                        if isinstance(faculty, Link):
+                            from app.models.external.faculty import Faculty
+                            faculty = await faculty.fetch()
+                        
+                        if faculty and hasattr(faculty, 'name'):
+                            if search_params.department.lower() in faculty.name.lower():
+                                filtered_profiles.append(p)
+                        elif faculty and hasattr(faculty, 'code'):
+                            if search_params.department.lower() in faculty.code.lower():
+                                filtered_profiles.append(p)
+                # Also check work_info for lecturers/staff
+                elif sso and sso.work_info and sso.work_info.department:
+                    if search_params.department.lower() in sso.work_info.department.lower():
+                        filtered_profiles.append(p)
+            profiles = filtered_profiles
+        
+        # Build results with availability data
+        results = []
+        for profile in profiles:
+            # Fetch availability slots for this tutor
+            availability_query = AvailabilitySlot.find(
+                AvailabilitySlot.tutor.id == profile.id,
+                AvailabilitySlot.is_booked == False
+            ).sort("+start_time")
+            
+            # Apply time range filter if provided
+            if search_params.available_from:
+                availability_query = availability_query.find(
+                    AvailabilitySlot.start_time >= search_params.available_from
+                )
+            if search_params.available_to:
+                availability_query = availability_query.find(
+                    AvailabilitySlot.end_time <= search_params.available_to
+                )
+            
+            # Filter by mode if specified
+            if search_params.mode:
+                availability_query = availability_query.find(
+                    {"allowed_modes": search_params.mode}
+                )
+            
+            slots = await availability_query.to_list()
+            
+            # Skip tutors with no matching availability if time/mode filters are active
+            if (search_params.available_from or search_params.available_to or search_params.mode) and not slots:
+                continue
+            
+            # Get closest availability
+            closest_slot = slots[0] if slots else None
+            closest_availability = None
+            if closest_slot:
+                closest_availability = ClosestAvailability(
+                    start_time=closest_slot.start_time,
+                    end_time=closest_slot.end_time,
+                    allowed_modes=closest_slot.allowed_modes
+                )
+            
+            # Build search result
+            if isinstance(profile.user, Link):
+                await profile.fetch_link(TutorProfile.user)
+            user = profile.user
+            
+            if isinstance(user.sso_info, Link):
+                await user.fetch_link(User.sso_info)
+            sso = user.sso_info
+            
+            # Map subjects
+            mapped_subjects = []
+            for sub in profile.teaching_subjects:
+                course_data = sub.course_ref
+                if isinstance(course_data, Link):
+                    course_data = await sub.course_ref.fetch()
+                if course_data:
+                    mapped_subjects.append(TeachingSubjectResponse(
+                        course_code=course_data.code,
+                        course_name=course_data.name,
+                        description=sub.description
+                    ))
+            
+            is_lecturer = sso.identity_type == UniversityIdentity.LECTURER if sso else False
+            academic_major = sso.academic.major if sso and sso.academic else None
+            
+            result = TutorSearchResult(
+                id=str(profile.id),
+                user_id=str(user.id),
+                full_name=user.full_name,
+                display_name=profile.display_name,
+                email_edu=user.email_edu,
+                academic_major=academic_major,
+                is_lecturer=is_lecturer,
+                bio=profile.bio,
+                tags=profile.tags,
+                status=profile.status.value,
+                avatar_url=profile.avatar_url,
+                subjects=mapped_subjects,
+                stats=TutorStatsResponse(
+                    average_rating=profile.stats.average_rating,
+                    total_feedbacks=profile.stats.total_feedbacks,
+                    total_sessions=profile.stats.total_sessions,
+                    total_students=profile.stats.total_students,
+                    response_rate=profile.stats.response_rate
+                ),
+                closest_availability=closest_availability
+            )
+            results.append(result)
+        
+        return results
+
     # ==========================================
     # 3. UPDATE LOGIC (Self-Management)
     # ==========================================
     @staticmethod
     async def update_tutor_profile(user: User, payload: TutorUpdateRequest) -> TutorResponse:
-        """Allows Tutor to update soft fields like bio and status."""
+        """
+        Allows Tutor to update Section II editable fields (bio, status, tags, display_name, email_personal, avatar_url).
+        Handles cross-model updates: TutorProfile fields + User.email_personal.
+        """
         
         profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
         if not profile:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
 
-        # Update fields only if provided in payload
-        if payload.display_name:
+        # Track if any changes were made
+        changes_made = False
+
+        # Update TutorProfile fields (Section II)
+        if payload.display_name is not None:
             profile.display_name = payload.display_name
-        if payload.bio:
+            changes_made = True
+            
+        if payload.bio is not None:
             profile.bio = payload.bio
+            changes_made = True
+            
         if payload.tags is not None:
             profile.tags = payload.tags
-        if payload.status:
-            profile.status = TutorStatus(payload.status) # Ensure input string is converted to Enum
+            changes_made = True
+            
+        if payload.status is not None:
+            profile.status = TutorStatus(payload.status) # Convert string to Enum
+            changes_made = True
+        
+        if payload.avatar_url is not None:
+            profile.avatar_url = payload.avatar_url
+            changes_made = True
 
-        # Save changes
-        await profile.save()
+        # Update User.email_personal (cross-model field)
+        if payload.email_personal is not None:
+            user.email_personal = payload.email_personal
+            await user.save()
+            changes_made = True
+
+        # Save TutorProfile changes
+        if changes_made:
+            profile.updated_at = datetime.now(timezone.utc)
+            await profile.save()
+
         return await TutorService._map_to_response(profile)
+
+    # ==========================================
+    # 4. AVATAR UPLOAD LOGIC
+    # ==========================================
+    @staticmethod
+    async def upload_avatar(user: User, file: UploadFile) -> dict:
+        """
+        Uploads a new avatar for the tutor to Cloudinary.
+        Deletes the old avatar if it exists to save storage space.
+        
+        Args:
+            user: The authenticated tutor user
+            file: The uploaded image file
+            
+        Returns:
+            Dictionary with avatar_url and success message
+        """
+        # Find tutor profile
+        profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
+        if not profile:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor profile not found")
+        
+        # Delete old avatar from Cloudinary if exists
+        if profile.avatar_public_id:
+            try:
+                await StorageService.delete_resource(
+                    public_id=profile.avatar_public_id,
+                    resource_type="image"
+                )
+            except Exception as e:
+                # Log but don't fail if deletion fails
+                print(f"Warning: Failed to delete old avatar {profile.avatar_public_id}: {str(e)}")
+        
+        # Upload new avatar to Cloudinary
+        upload_result = await StorageService.upload_document(
+            file=file,
+            folder="tutor-system/avatars"
+        )
+        
+        # Update profile with new avatar URL and public_id
+        profile.avatar_url = upload_result["secure_url"]
+        profile.avatar_public_id = upload_result["public_id"]
+        profile.updated_at = datetime.now(timezone.utc)
+        await profile.save()
+        
+        return {
+            "avatar_url": upload_result["secure_url"],
+            "message": "Avatar uploaded successfully"
+        }
