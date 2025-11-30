@@ -1,36 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { hasRole, Role } from '@/lib/role';
+import { hasRole, Role } from "@/lib/role";
+
+type BadgeColor = "green" | "blue" | "orange" | "gray";
 
 export default function AdminDashboardPage() {
-  const kpis = [
-    { label: "SSO status", value: "Online", badge: "green" },
-    { label: "Last DATACORE sync", value: "5 mins ago", badge: "blue" },
-    { label: "Pending exports", value: "2", badge: "orange" },
-    { label: "Audit events (24h)", value: "134", badge: "gray" },
-  ];
+  const [kpis, setKpis] = useState<any[]>([]);
+  const [recentExports, setRecentExports] = useState<any[]>([]);
+  const [integrations, setIntegrations] = useState<any[]>([]);
 
-  const recentExports = [
-    { id: "E-090", name: "Departmental Report (CSV)", at: "2025-11-01 21:15", status: "Done" },
-    { id: "E-091", name: "Participation Report (PDF)", at: "2025-11-02 08:05", status: "Queued" },
-    { id: "E-092", name: "Audit Logs (CSV)", at: "2025-11-02 09:40", status: "Processing" },
-  ];
+  // Load dashboard data
+  const loadDashboard = async () => {
+    const res = await fetch("/api/admin/dashboard");
+    const data = await res.json();
 
-  const integrations = [
-    { name: "HCMUT_SSO", status: "OK", lastChecked: "2025-11-02 10:05" },
-    { name: "DATACORE", status: "OK", lastChecked: "2025-11-02 10:03" },
-    { name: "HCMUT_LIBRARY", status: "DEGRADED", lastChecked: "2025-11-02 09:58" },
-  ];
+    setKpis(data.kpis);
+    setRecentExports(data.recentExports);
+    setIntegrations(data.integrations);
+  };
 
-  const getBadgeColor = (badge: string) => {
-    const colors = {
-      green: "bg-green-100 text-green-800 border-green-200",
-      blue: "bg-blue-100 text-blue-800 border-blue-200",
-      orange: "bg-orange-100 text-orange-800 border-orange-200",
-      gray: "bg-gray-100 text-gray-800 border-gray-200",
-    };
-    return colors[badge as keyof typeof colors] || colors.gray;
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  // Only green badge is allowed to show (for "Online")
+  const badgeDotClass = (badge: BadgeColor) => {
+    if (badge !== "green") return "hidden"; // hide ALL other dots
+    return "inline-block w-3 h-3 rounded-full bg-green-500 border border-green-600";
   };
 
   const getStatusColor = (status: string) => {
@@ -48,51 +46,50 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-6 space-y-6">
-      {/* Header */}
+
+      {/* HEADER */}
       <header>
         <h1 className="text-2xl md:text-3xl font-bold text-dark-blue">Admin Dashboard</h1>
-        <p className="text-sm md:text-base text-black/70 mt-1">
+        <p className="text-sm text-black/70 mt-1">
           Monitor integrations, exports, and system health for the Tutor Support System.
         </p>
       </header>
 
-      {/* KPI Grid */}
+      {/* KPI GRID */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, idx) => (
-          <div
-            key={idx}
-            className="bg-white border border-soft-white-blue rounded-lg p-4 flex flex-col"
-          >
+          <div key={idx} className="bg-white border border-soft-white-blue rounded-lg p-4">
+
             <span className="text-xs font-medium text-black/60 uppercase tracking-wide">
               {kpi.label}
             </span>
+
             <div className="flex items-center gap-2 mt-2">
               <span className="text-2xl font-bold text-dark-blue">{kpi.value}</span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded border ${getBadgeColor(kpi.badge)}`}
-              >
-                {kpi.badge}
-              </span>
+
+              {/* Only show DOT if badge === green */}
+              <span className={badgeDotClass(kpi.badge as BadgeColor)}></span>
             </div>
           </div>
         ))}
       </section>
 
-      {/* Recent Exports */}
+      {/* RECENT EXPORTS */}
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Recent Exports</h2>
+
           {hasRole(Role.PROGRAM_ADMIN) ? (
-            <Link
-              href="/admin/exports"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
+            <Link href="/admin/exports" className="text-sm text-blue-600 hover:text-blue-800">
               View all →
             </Link>
           ) : (
-            <div className="text-sm text-black/60">Recent exports list is available to Program Admins.</div>
+            <p className="text-sm text-black/60">
+              Recent exports list is available to Program Admins.
+            </p>
           )}
         </div>
+
         <div className="space-y-3">
           {recentExports.map((exp) => (
             <div
@@ -101,10 +98,11 @@ export default function AdminDashboardPage() {
             >
               <div className="flex-1">
                 <p className="text-sm font-medium text-dark-blue">{exp.name}</p>
-                <p className="text-xs text-black/60 mt-0.5">
+                <p className="text-xs text-black/60">
                   {exp.id} · {exp.at}
                 </p>
               </div>
+
               <span
                 className={`text-xs px-2 py-1 rounded font-medium ${getExportStatusColor(
                   exp.status
@@ -117,21 +115,22 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* Integrations Health */}
+      {/* INTEGRATIONS */}
       <section className="bg-white border border-soft-white-blue rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-dark-blue">Integrations</h2>
+
           {hasRole(Role.PROGRAM_ADMIN) ? (
-            <Link
-              href="/admin/integrations"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
+            <Link href="/admin/integrations" className="text-sm text-blue-600 hover:text-blue-800">
               Manage →
             </Link>
           ) : (
-            <div className="text-sm text-black/60">Integration management is reserved for Program Admins.</div>
+            <p className="text-sm text-black/60">
+              Integration management is available only to Program Admins.
+            </p>
           )}
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {integrations.map((int) => (
             <div
@@ -140,6 +139,7 @@ export default function AdminDashboardPage() {
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-dark-blue">{int.name}</span>
+
                 <span
                   className={`text-xs px-2 py-0.5 rounded border font-medium ${getStatusColor(
                     int.status
@@ -148,11 +148,15 @@ export default function AdminDashboardPage() {
                   {int.status}
                 </span>
               </div>
-              <p className="text-xs text-black/60">Last checked: {int.lastChecked}</p>
+
+              <p className="text-xs text-black/60">
+                Last checked: {int.lastChecked}
+              </p>
             </div>
           ))}
         </div>
       </section>
+
     </div>
   );
 }

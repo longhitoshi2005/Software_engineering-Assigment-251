@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
-export default function DeptLayout({
+export default function CoordLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -20,18 +20,25 @@ export default function DeptLayout({
 
   const navSections = [
     {
-      label: "Reports",
-      basePath: "/dept/reports",
+      label: "Dashboard", 
+      basePath: "/coord/dashboard",
       children: [
-        { label: "View Reports", path: "/dept/reports" },
-        { label: "Feedback Trends", path: "/dept/reports/feedback-trends" },
+        { label: "Dashboard", path: "/coord/dashboard" },
       ],
     },
+     {
+     label: "Sessions",
+    basePath: "/coord/sessions", 
+    children: [
+      { label: "Issues & Status", path: "/coord/sessions" },       // Trang quản lý sự cố (file trước)
+      { label: "Detailed Logs", path: "/coord/sessions/details" },  // Trang chi tiết (file này)
+    ],
+  },
     {
       label: "Profile",
-      basePath: "/dept/profile",
+      basePath: "/coord/profile", 
       children: [
-        { label: "My Profile", path: "/dept/profile" },
+        { label: "My Profile", path: "/coord/profile" }, 
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -44,10 +51,8 @@ export default function DeptLayout({
   return (
     <div className="min-h-screen bg-soft-white-blue">
       <nav className="w-full bg-dark-blue h-[60px] flex items-center justify-between px-6 md:px-10">
-        <div
-          className="flex items-center gap-3 cursor-pointer"
-        >
-          <Link href="/dept/reports">
+        <div className="flex items-center gap-3 cursor-pointer">
+          <Link href="/coord/dashboard">
             <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-1">
               <Image
                 src="/logo-hcmut.png"
@@ -63,7 +68,7 @@ export default function DeptLayout({
               TUTOR SUPPORT SYSTEM
             </span>
             <span className="text-white/50 text-[0.6rem] uppercase tracking-wide">
-              department
+              coordinator
             </span>
           </div>
         </div>

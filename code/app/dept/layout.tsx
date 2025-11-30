@@ -22,75 +22,51 @@ export default function DeptLayout({
   };
 
   // ===== NAV MODEL (đã bổ sung đầy đủ) =====
-  const navSections: {
-    label: string;
-    basePath: string;
-    children: { label: string; path: string; external?: boolean }[];
-  }[] = [
-    {
-      label: "Dashboard",
-      basePath: "/dept",
-      children: [
-        { label: "Overview", path: "/dept" }, // /dept/page.tsx
-      ],
-    },
-    {
-      label: "Operations",
-      basePath: "/dept/matching",
-      children: [
-        { label: "Matching Oversight", path: "/dept/matching" },
-        { label: "Sessions", path: "/dept/sessions" },
-        { label: "Progress Logs", path: "/dept/progress" },
-      ],
-    },
-    {
-      label: "Analytics",
-      basePath: "/dept/workload",
-      children: [
-        { label: "Tutor Workload", path: "/dept/workload" },
-        { label: "Feedback Analytics", path: "/dept/feedback" },
-      ],
-    },
-    {
-      label: "Reports",
-      basePath: "/dept/reports",
-      children: [
-        { label: "Departmental", path: "/dept/reports/departmental" },
-        { label: "Participation", path: "/dept/reports/participation" },
-        { label: "Workload", path: "/dept/reports/workload" },
-        { label: "Export Center", path: "/dept/exports" },
-      ],
-    },
-    {
-      label: "Rosters",
-      basePath: "/dept/tutors",
-      children: [
-        { label: "Tutors", path: "/dept/tutors" },
-        { label: "Students", path: "/dept/students" },
-      ],
-    },
-    {
-      label: "Integrations",
-      basePath: "/dept/integrations",
-      children: [
-        { label: "System Integrations", path: "/dept/integrations" },
-        { label: "DATACORE Sync Log", path: "/account/datacore-log" }, // nếu bạn để log tại /account
-      ],
-    },
-    {
-      label: "Audit",
-      basePath: "/dept/audit",
-      children: [{ label: "Audit & System Logs", path: "/dept/audit" }],
-    },
-    {
-      label: "Profile",
-      basePath: "/dept/profile",
-      children: [
-        { label: "My Profile", path: "/dept/profile" },
-        { label: "Logout", path: "/auth/login" },
-      ],
-    },
-  ];
+ const navSections = [
+  {
+    label: "Dashboard",
+    basePath: "/dept",
+    children: [
+      { label: "Overview", path: "/dept" },
+    ],
+  },
+  {
+    label: "Operations",
+    basePath: "/dept/matching",
+    children: [
+      { label: "Matching Oversight", path: "/dept/matching" },
+      { label: "Sessions", path: "/dept/sessions" },
+      { label: "Progress Logs", path: "/dept/progress" },
+      { label: "Manual Match", path: "/dept/manual-match" },
+    ],
+  },
+  {
+    label: "Analytics",
+    basePath: "/dept/feedback",
+    children: [
+      { label: "Feedback Analytics", path: "/dept/feedback" },
+    ],
+  },
+  {
+    label: "Reports",
+    basePath: "/dept/reports",
+    children: [
+      { label: "Departmental", path: "/dept/reports/departmental" },
+      { label: "Participation", path: "/dept/reports/participation" },
+      { label: "Workload", path: "/dept/reports/workload" },
+      { label: "Export Center", path: "/dept/exports" },
+    ],
+  },
+  {
+    label: "Profile",
+    basePath: "/dept/profile",
+    children: [
+      { label: "My profile", path: "/dept/profile" },
+      { label: "Logout", path: "/auth/login" },
+    ],
+  },
+];
+
 
   // active nếu current path bắt đầu bằng basePath hoặc bằng path của bất kỳ child
   const isGroupActive = (groupPath: string, children: { path: string }[]) =>
