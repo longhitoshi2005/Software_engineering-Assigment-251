@@ -1,0 +1,138 @@
+\documentclass[12pt,a4paper]{article}
+
+% ---------- Packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc} % Vietnamese accents ready
+\usepackage[english]{babel}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{float}
+\newcommand{\keywords}[1]{\textbf{Keywords:} #1}
+
+% ---------- Styling ----------
+\definecolor{HCMUTBlue}{RGB}{0,76,153}
+\definecolor{LightGray}{RGB}{245,245,245}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=HCMUTBlue,
+    urlcolor=HCMUTBlue,
+    citecolor=HCMUTBlue
+}
+\titleformat{\section}{\large\bfseries\color{HCMUTBlue}}{\thesection}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\setlist[itemize]{topsep=2pt,itemsep=2pt,partopsep=0pt,parsep=2pt}
+\setlist[enumerate]{topsep=2pt,itemsep=2pt,partopsep=0pt,parsep=2pt}
+
+% ---------- Title ----------
+\title{\textbf{Tutor Support System at HCMUT}\\[2pt] \large Assignment's Specification}
+\author{Ho Chi Minh City University of Technology (HCMUT)\\Faculty of Computer Science and Engineering}
+\date{September 2025}
+
+\begin{document}
+\pagenumbering{gobble}
+\maketitle
+
+\begin{center}
+\includegraphics[width=0.4\linewidth]{images/hcmut-logo-placeholder.png}\\[6pt]
+% \textit{Version 1.0}
+
+\vspace{1.5cm}
+
+\end{center}
+
+\begin{center}
+\begin{tabular}{rll}
+Instructor: & Dr. Truong Thi Thai Minh           &  \\
+\\
+Student:    & Tran Huu Hoang Long    & 2352704 \\
+\\
+            & Doan Anh Khoi       &   2352601 \\
+\\
+            & Arthur Bardot          &   2460080 \\
+\\
+            & Nguyen Manh Quoc Khanh       &   2352525 \\
+\\
+            & Pham Quang Tuan       &   2353275 \\
+\\
+            & Phan Ngoc Lan Chi       &   2352137 \\
+\\
+            & Truong Quoc Thai     &   2353094 \\
+\\
+\end{tabular}
+\end{center}
+
+\vfill
+\begin{center}
+\textit{This specification follows the structure and conventions used in prior course specifications, adapted to the Tutor Support System context.}
+\end{center}
+
+\section*{Abstract}
+\input{sections/00_abstract}
+\newpage
+\pagenumbering{arabic}
+\tableofcontents
+\newpage
+
+\section{Assignment's outcome}
+\input{sections/01_outcome}
+
+\section{Introduction}
+\input{sections/02_introduction}
+
+\section{Description}
+\input{sections/03_description}
+
+\section{Functional Requirements}
+\input{sections/04_functional_requirements}
+
+\section{Non-Functional Requirements}
+\input{sections/05_nonfunctional}
+
+\section{Use-Case View}
+\input{sections/06_use_cases}
+
+\section{Sequence Diagram}
+\input{sections/12_sequence_diagram}
+
+\section{Activity Diagram}
+\input{sections/13_activity_diagram}
+
+\section{State Diagram}
+\input{sections/14_state_diagram}
+
+\section{Mockup}
+\input{sections/15_mockup}
+
+\section{System Integration}
+\input{sections/07_integration}
+
+\section{Working Demonstration}
+\input{sections/16_working_demonstration}
+
+\section{Coding Rules and Constraints}
+\input{sections/08_coding_rules}
+
+\section{Submission and Deliverables}
+\input{sections/09_submission}
+
+\section{Generative AI Usage Statement}
+\input{sections/10_regulations}
+
+\section{Workload}
+\input{sections/17_workload}
+
+\section{Changelog}
+\input{sections/11_changelog}
+
+
+
+\end{document}

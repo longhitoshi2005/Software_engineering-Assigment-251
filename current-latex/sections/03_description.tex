@@ -1,0 +1,32 @@
+\subsection{Stakeholders, Roles, and Expectations}
+\subsubsection{Stakeholders}
+Stakeholders are individuals or entities who can affect or are affected by the project outcomes.\\[4pt]
+\textbf{Primary:} HCMUT staff (customer), course instructors (project managers), development team, designers.\\
+\textbf{Secondary:} Students (end-users), tutors, government, competitors.
+
+Stakeholders may be internal (within HCMUT: Office of Academic Affairs, Office of Student Affairs, departments) or external (students, tutors).
+
+\subsubsection{Roles}
+Roles are permissions and capabilities within the system: Student, Tutor, Coordinator, Department Chair, Program Administrator.
+
+\subsubsection{Expectations}
+Each role expects secure access, clear workflows, and reliable performance. Students expect easy registration and booking; tutors expect manageable scheduling; administrators expect robust reporting.
+
+\subsection{Objectives and Scope}
+\paragraph{Objectives} Design and develop an efficient, secure, and scalable software supporting the Tutor/Mentor program:
+\begin{itemize}
+  \item Manage tutor/student information (profiles, expertise, support needs).
+  \item Enable registration, selection or automated matching.
+  \item Support scheduling, booking, cancellation, rescheduling (online or in-person).
+  \item Provide progress tracking, feedback, evaluation.
+  \item Generate reports for departments and offices to optimize resources and recognition.
+  \item Integrate with HCMUT SSO/DataCore/Library for consistency and security.
+\end{itemize}
+
+\paragraph{Scope} This specification covers:
+\begin{itemize}
+  \item Core features: profile management, matching, scheduling, notifications, feedback, reporting.
+  \item Integrations: HCMUT\_SSO (auth), HCMUT\_DATACORE (personal data), HCMUT\_LIBRARY (learning resources).
+  \item Roles: Student, Tutor, Coordinator, Department Chair, Program Admin (RBAC).
+\end{itemize}
+\textbf{Out of Scope (MVP)}: Full production DB, advanced AI features (smart matching, personalization), external integrations beyond HCMUT.

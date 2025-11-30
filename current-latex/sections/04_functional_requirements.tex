@@ -1,0 +1,375 @@
+\subsection{Functional Requirements List}
+The following table summarizes the functional requirements of the Tutor Support System. Requirements are grouped into thematic categories to ensure clarity and traceability.\\
+
+\textbf{Prioritization Method}: In this project, we applied the MoSCoW prioritization technique to classify functional requirements. This method categorizes requirements into four levels:
+\begin{itemize}
+    \item Must: Essential for the system to function; without them, the system fails to meet its objectives.
+    \item Should: Important but not vital; the system can still operate without them in the first release.
+    \item Could: Desirable enhancements that improve usability or efficiency if time/resources allow.
+    \item Won’t (this time): Explicitly excluded from the current scope, possibly considered for future releases.
+\end{itemize}
+
+This approach ensures clarity in requirement importance and helps manage project scope effectively.
+
+\subsection{User \& Information Management (FR-UM)}
+
+\begin{itemize}
+    \item \textbf{FR-UM.01 – Profile}
+        \begin{itemize}
+            \item \textit{Description}: The system shall allow students and tutors to view and update their personal profiles, with core information (name, student ID, email, role, faculty/major) synchronized from the university’s database.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Profiles automatically include core fields (name, student ID, email, role, faculty/major) synced from the university database; users are not required to manually enter these fields.
+                    \item Profile changes are timestamped and stored.
+                \end{itemize}
+            \item \textit{Priority}: Must
+        \end{itemize}
+    \item \textbf{FR-UM.02 – Role-based Access Control}
+        \begin{itemize}
+                    \item \textit{Description}: The system shall enforce role-based access control to regulate permissions for students, tutors, coordinators, department heads, and administrators.
+                    \item \textit{Acceptance Criteria}:
+                        \begin{itemize}
+                            \item Each role has defined permissions.
+                            \item Unauthorized access attempts are logged.
+                        \end{itemize} 
+                    \item \textit{Priority}: Must
+                \end{itemize}
+        \end{itemize}
+
+\subsection{Tutor--Student Matching (FR-MAT)}
+
+    \begin{itemize}
+        \item \textbf{FR-MAT.01 – Manual Tutor Selection}
+            \begin{itemize}
+                \item \textit{Description}: The system shall allow students to register for the tutoring program.
+                \item \textit{Acceptance Criteria}:
+                    \begin{itemize}
+                        \item Students can successfully submit a registration request to join the tutoring program.
+                    \end{itemize}
+                \item \textit{Priority}: Must
+            \end{itemize}
+
+        \item \textbf{FR-MAT.02 – Manual Tutor Selection}
+            \begin{itemize}
+                \item \textit{Description}: The system shall allow students to search for and manually select tutors based on expertise, availability, and preferences. Core tutor information (subject, department, schedule) is synchronized from the university database, while teaching preferences are provided by tutors.
+                \item \textit{Acceptance Criteria}:
+                    \begin{itemize}
+                        \item Students can filter tutors by at least three criteria (e.g., subject, availability, preferences).
+                        \item Selection creates a pending match awaiting tutor confirmation.
+                    \end{itemize}
+                \item \textit{Priority}: Must
+            \end{itemize}
+    
+    \item \textbf{FR-MAT.03 – Smart Matching}
+        \begin{itemize}
+            \item \textit{Description}: The system shall provide automated tutor–student matching using predefined criteria such as subject, availability, and tutor workload. Matching relies on synchronized data from DATACORE combined with tutor-specified preferences.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item System generates a ranked list of tutors with explanation of matching factors.
+                    \item Confirmation from both tutor and student finalizes the match.
+                \end{itemize}      
+            \item \textit{Priority}: Should
+        \end{itemize}
+    
+\item \textbf{FR-MAT.04 – Coordinator Assignment}
+    \begin{itemize}
+        \item \textit{Description}: The system shall allow coordinators, department chairs, or administrators to manually assign tutors to students when necessary, overriding automated or student-selected matches.
+        \item \textit{Acceptance Criteria}:
+            \begin{itemize}
+                \item Only authorized roles can assign tutors.
+                \item Manual assignment overrides previous matches.
+                \item Assignment details (who, when, reason) are logged and traceable.
+            \end{itemize}      
+        \item \textit{Priority}: Must
+    \end{itemize}
+   
+
+\end{itemize}
+
+\subsection{Session \& Scheduling Management (FR-SCH)}
+
+\begin{itemize}
+\item \textbf{FR-SCH.01 – Tutor Availability}
+\begin{itemize}
+\item \textit{Description}: The system shall allow tutors to set and manage their availability for consultation sessions, synchronized with official university timetables where applicable.
+\item \textit{Acceptance Criteria}:
+\begin{itemize}
+\item Only tutors can create, edit, and delete available slots.
+\item The system prevents overlapping slots.
+\item Slots cannot conflict with official class schedules imported from DATACORE.
+\end{itemize}
+\item \textit{Priority}: Must
+\end{itemize}
+
+
+\item \textbf{FR-SCH.02 – Session Booking}
+    \begin{itemize}
+        \item \textit{Description}: The system shall allow students to book in-person or online sessions with tutors based on available slots.
+        \item \textit{Acceptance Criteria}:
+            \begin{itemize}
+                \item Booking is allowed only within available tutor slots.
+                \item The system prevents double-booking of the same slot.
+            \end{itemize}  
+        \item \textit{Priority}: Must
+    \end{itemize}
+    
+\item \textbf{FR-SCH.03 – Session Modification}
+    \begin{itemize}
+        \item \textit{Description}: The system shall allow students to cancel or reschedule booked sessions.
+        \item \textit{Acceptance Criteria}:
+            \begin{itemize}
+                \item Cancellation and rescheduling must follow configured rules (e.g., at least 2 hours before session start).
+                \item The system ensures new booking adheres to availability and no conflicts.
+            \end{itemize}  
+        \item \textit{Priority}: Must
+    \end{itemize}
+    
+\item \textbf{FR-SCH.04 – Notifications \& Reminders}
+    \begin{itemize}
+        \item \textit{Description}: The system shall automatically send notifications and reminders for upcoming sessions or schedule changes.
+        \item \textit{Acceptance Criteria}:
+            \begin{itemize}
+                \item Notification sent immediately upon booking, cancellation, or reschedule.
+                \item Reminder sent at least 24h and 1h before session start.
+            \end{itemize}  
+        \item \textit{Priority}: Must
+    \end{itemize}
+   
+
+\end{itemize}
+
+
+
+\subsection{Feedback \& Progress Tracking (FR-FBK)}
+
+\begin{itemize}
+    \item \textbf{FR-FBK.01 – Session Feedback}
+        \begin{itemize}
+            \item \textit{Description}: The system shall enable students to provide structured feedback for each completed session.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Feedback form is available only after session completion.
+                    \item Each student can submit one feedback entry per session.
+                    \item Feedback is linked to session ID and timestamped.
+                \end{itemize}
+            \item \textit{Priority}: Must
+        \end{itemize}
+
+    \item \textbf{FR-FBK.02 – Progress Recording}
+    \begin{itemize}
+        \item \textit{Description}: The system shall allow tutors to record mentee progress and generate optional summaries after sessions.
+        \item \textit{Acceptance Criteria}:
+            \begin{itemize}
+                \item Only tutors can log progress, which is linked to session ID.
+                \item Summaries may include text notes and optional attachments.
+                \item All records are timestamped and stored for reporting.
+            \end{itemize}  
+        \item \textit{Priority}: Should
+    \end{itemize}
+
+\end{itemize}
+
+\subsection{Reporting \& Analytics (FR-RPT)}
+
+\begin{itemize}
+    \item \textbf{FR-RPT.01 – Departmental Reports}
+        \begin{itemize}
+            \item \textit{Description}: The system shall generate reports for academic departments to monitor student learning performance.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Reports include attendance, performance indicators, and session counts.
+                    \item Data exportable to CSV/PDF.
+                \end{itemize}  
+            \item \textit{Priority}: Should
+        \end{itemize}
+    \item \textbf{FR-RPT.02 – Academic Affairs Overview}
+        \begin{itemize}
+            \item \textit{Description}: The system shall provide overview reports for the Office of Academic Affairs to optimize resource allocation.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Reports show tutor workload distribution and student demand trends.
+                    \item Dashboards update with latest synced data.
+                \end{itemize}  
+            \item \textit{Priority}: Should
+        \end{itemize}
+    \item \textbf{FR-RPT.03 – Student Affairs Outcomes}
+        \begin{itemize}
+            \item \textit{Description}: The system shall provide summarized participation data for the Office of Student Affairs to support training credits and scholarship considerations.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Reports list eligible students based on configured rules.
+                    \item Calculation rules are transparent and logged.
+                \end{itemize}  
+            \item \textit{Priority}: Should
+        \end{itemize}
+\end{itemize}
+
+\subsection{Integration with HCMUT Infrastructure (FR-INT)}
+
+\begin{itemize}
+    \item \textbf{FR-INT.01 – \texttt{HCMUT\_SSO} Integration}
+        \begin{itemize}
+            \item \textit{Description}: The system shall integrate with \texttt{HCMUT\_SSO} for unified authentication.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Only valid SSO accounts can log in.
+                    \item Single sign-out follows HCMUT SSO rules.
+                \end{itemize}  
+            \item \textit{Priority}: Must
+        \end{itemize}
+    \item \textbf{FR-INT.02 – DATACORE Synchronization}
+        \begin{itemize}
+            \item \textit{Description}: The system shall synchronize core personal and academic data from \texttt{HCMUT\_DATACORE}.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Sync occurs periodically or near real-time.
+                    \item Conflicts resolved with DATACORE as source of truth.
+                \end{itemize}  
+            \item \textit{Priority}: Must
+        \end{itemize}
+
+    \item \textbf{FR-INT.03 – Role assignment}
+                \begin{itemize}
+            \item \textit{Description}: The system shall automatically assign roles (student, tutor, coordinator, department chair, administrator) based on centralized HCMUT role data.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item System assigns roles upon login via SSO.
+                    \item Role updates in DATACORE are reflected in the system within defined sync intervals.
+                \end{itemize}
+            \item \textit{Priority}: Must
+        \end{itemize}
+
+    \item \textbf{FR-INT.04 – Library Resource Linking}
+        \begin{itemize}
+            \item \textit{Description}: The system shall connect with \texttt{HCMUT\_LIBRARY} to allow tutors and students to share relevant materials.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Users can attach library resources to sessions or summaries.
+                    \item Access permissions follow HCMUT library rules.
+                \end{itemize} 
+            \item \textit{Priority}: Could
+        \end{itemize}
+\end{itemize}
+% \begin{enumerate}[label=FR-6.\arabic*, leftmargin=2.2cm]
+%   \item The system shall support unified login using \texttt{HCMUT\_SSO}.
+%   \item The system shall synchronize core user data (student/staff ID, faculty, major, status) from \texttt{HCMUT\_DATACORE}.
+%   \item The system shall enforce role-based access control (RBAC) using centralized role information.
+%   \item The system shall integrate with \texttt{HCMUT\_LIBRARY} to share official resources and learning materials.
+%   \item The system shall support connections to external online meeting platforms (e.g., Zoom, Microsoft Teams, Google Meet).
+% \end{enumerate}
+
+\subsection{Advanced / Optional Features (FR-ADV)}
+These features are not mandatory for the MVP but can enhance the Tutor Support System if resources permit:
+
+\begin{itemize}
+    \item \textbf{FR-ADV.01 – Intelligent Matching (AI Integration)}
+        \begin{itemize}
+            \item \textit{Description}: The system may leverage AI techniques to optimize tutor–student pairing by analyzing multiple factors such as performance history, learning style, and tutor workload.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item AI suggestions ranked with justification.
+                    \item Users can compare AI suggestion with manual choice.
+                \end{itemize} 
+            \item \textit{Priority}: Optional
+        \end{itemize}
+    \item \textbf{FR-ADV.02 – Online Community Platform}
+        \begin{itemize}
+            \item \textit{Description}: The system may provide a forum or community space where tutors and students can exchange resources, discuss topics, and collaborate outside formal sessions.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Users can create discussion threads and share files.
+                    \item Moderation tools available for coordinators.
+                \end{itemize} 
+            \item \textit{Priority}: Optional
+        \end{itemize}
+    \item \textbf{FR-ADV.03 – Personalized Learning Support}
+        \begin{itemize}
+            \item \textit{Description}: The system may use AI-driven recommendations to suggest learning materials, exercises, or tutoring approaches tailored to individual students.
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item Recommendations adapt to student’s history and feedback.
+                    \item Users can accept or reject suggestions.
+                \end{itemize} 
+            \item \textit{Priority}: Optional
+        \end{itemize}
+    \item \textbf{FR-ADV.04 – Multi-Program Tutoring}
+        \begin{itemize}
+            \item \textit{Description}: The system may support both academic tutoring (courses, skills) and non-academic mentoring (career guidance, soft skills).
+            \item \textit{Acceptance Criteria}:
+                \begin{itemize}
+                    \item System allows defining and tracking multiple tutoring program types.
+                    \item Reports distinguish between academic and non-academic activities.
+                \end{itemize} 
+            \item \textit{Priority}: Optional
+        \end{itemize}
+\end{itemize}
+
+
+\subsection{Non-interactive Functional Requirements (FR-NI)}
+
+\begin{itemize}
+    \item \textbf{FR-NI-01 – Automatic Notifications}
+        \begin{itemize}
+            \item \textit{Description}: The system shall automatically send confirmation, reminder, and cancellation/rescheduling notifications to students and tutors without manual intervention.
+            \item \textit{Priority}: Must
+        \end{itemize}
+
+    \item \textbf{FR-NI-02 – DataCore Sync}
+        \begin{itemize}
+            \item \textit{Description}: The system shall periodically synchronize personal data (name, ID, faculty, email, status) from HCMUT\_DATACORE.
+            \item \textit{Trigger}: Hourly schedule + on change-webhook
+            \item \textit{Output}: Up-to-date user records with change log
+            \item \textit{Acceptance Criteria}: \(\geq 99\%\) updates reflected within 10 minutes of source change. 
+            \item \textit{Priority}: Must
+        \end{itemize}
+
+    \item \textbf{FR-NI-03 – Automatic Inactive Detection}
+        \begin{itemize}
+            \item \textit{Description}: The system should detect logged-in accounts with no activity for a specific period of time and log them out to maintain stability and security.
+            \item \textit{Acceptance Criteria}: 
+                \begin{itemize}
+                    \item The system saves the state of the inactive account before logging out.
+                    \item The threshold for inactive time is dynamic, depending on the state of the system.
+                \end{itemize}
+            \item \textit{Priority}: Optional
+        \end{itemize}
+
+    \item \textbf{FR-N-04 – Scheduled Database Cleanup}
+        \begin{itemize}
+            \item \textit{Description}: The system shall automatically perform database cleanup on a scheduled basis, removing obsolete temporary data, expired logs, and error records to maintain storage efficiency and system performance.
+            \item \textit{Acceptance Criteria}: 
+                \begin{itemize}
+                    \item Temporary data and logs older than 12 months are automatically deleted or archived.
+                    \item Cleanup runs during off-peak hours to avoid disruption.
+                    \item A cleanup summary report (records removed, storage freed) is logged.
+                    \item Cleanup failures trigger an alert for administrators.
+                \end{itemize}
+            \item \textit{Priority}: Should
+        \end{itemize}
+
+    \item \textbf{FR-NI-05 – Disaster Recovery \& Backup}
+        \begin{itemize}
+            \item \textit{Description}: The system shall maintain automated backup and disaster recovery mechanisms to ensure data resilience and continuity in case of failure or outage.
+            \item \textit{Acceptance Criteria}: 
+                \begin{itemize}
+                    \item Full backups daily; incremental backups every 15 minutes.
+                    \item Backups encrypted and stored in two geographically separate locations.
+                    \item RPO \(\leq \) 15 minutes, RTO \(\leq \) 4 hours.
+                    \item Backup integrity verified after each operation.
+                    \item Failed backups trigger administrator alerts.
+                \end{itemize}
+            \item \textit{Priority}: Should
+        \end{itemize}
+
+    \item \textbf{FR-NI-06 – Attendance Logging}
+        \begin{itemize}
+            \item \textit{Description}: The system shall automatically mark attendance when a student joins an online tutoring session via the platform.
+            \item \textit{Acceptance Criteria}: 
+                \begin{itemize}
+                    \item Attendance log created within 1 minute of session start.
+                    \item Logs include session ID, student ID, timestamp.
+                \end{itemize}
+            \item \textit{Priority}: Should
+        \end{itemize}
+\end{itemize}
+\textbf{}

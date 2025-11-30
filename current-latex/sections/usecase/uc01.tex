@@ -1,0 +1,112 @@
+\begin{center}
+\includegraphics[width=0.9\linewidth]{images/UC-01.png}
+\end{center}
+
+\begin{center}
+\textbf{Figure 2:}  Log in and Manage Profile
+\end{center}  
+
+\begin{center}
+\begin{longtable}{|p{3cm}|p{11cm}|}
+\hline
+\textbf{Use-case ID} & UC-01a \\ 
+\hline
+\textbf{Use-case name} & Login via SSO \\ 
+\hline
+\textbf{Use-case overview} & To allow students, tutors, and staff to log in securely via HCMUT\_SSO with role assignment handled by the system. \\ 
+\hline
+\textbf{Actors} & 
+\begin{itemize}
+    \item Users (Students, Tutors, Staff), HCMUT\_SSO, System
+\end{itemize} \\ 
+\hline
+\textbf{Preconditions} & 
+\begin{enumerate}
+    \item Users have valid SSO credentials.
+    \item HCMUT\_SSO service is available.
+\end{enumerate} \\ 
+\hline
+\textbf{Trigger} & User selects the "Login via SSO" option. \\ 
+\hline
+\textbf{Main Flow (Steps)} & 
+\begin{enumerate}
+    \item User initiates login via HCMUT\_SSO.
+    \item System sends authentication request to SSO service.
+    \item HCMUT\_SSO validates credentials.
+    \item On success, the system fetches user data and assigns role.
+    \item On failure, the system denies access.
+\end{enumerate} \\ 
+\hline
+\textbf{Postconditions} & 
+\begin{itemize}
+    \item User is authenticated and session established.
+    \item Role assignment is ready for system use.
+\end{itemize} \\ 
+\hline
+\textbf{Alternative Flows} & 
+\begin{enumerate}
+    \item \textbf{Invalid Login:} Invalid login $\rightarrow$ Access denied with error message.
+    \item \textbf{Role Update:} Role update in DATACORE synced during login.
+\end{enumerate} \\ 
+\hline
+\textbf{Exception Flows} & 
+\begin{itemize}
+    \item \textbf{SSO Service Unavailable:} SSO service unavailable $\rightarrow$ System shows maintenance/unavailable message.
+    \item \textbf{Network Error:} Network error $\rightarrow$ User prompted to retry login.
+\end{itemize} \\ 
+\hline
+\caption{Use Case UC-01a: Login via SSO}
+\end{longtable}
+\end{center}
+
+\begin{center}
+\begin{longtable}{|p{3cm}|p{11cm}|}
+\hline
+\textbf{Use-case ID} & UC-01b \\ 
+\hline
+\textbf{Use-case name} & Profile Management \\ 
+\hline
+\textbf{Use-case overview} & To allow students and tutors to view and update their profiles, with core data synchronized from HCMUT\_DATACORE. \\ 
+\hline
+\textbf{Actors} & 
+\begin{itemize}
+    \item Student, Tutor, HCMUT\_DATACORE, System
+\end{itemize} \\ 
+\hline
+\textbf{Preconditions} & 
+\begin{enumerate}
+    \item Users is authenticated via SSO.
+    \item Profile data exists in DATACORE.
+\end{enumerate} \\ 
+\hline
+\textbf{Trigger} & User go to "Profile" page, and or click "Edit" button. \\ 
+\hline
+\textbf{Main Flow (Steps)} & 
+\begin{enumerate}
+    \item System retrieves profile information from DATACORE.
+    \item User views profile fields (ID, name, email, faculty, role).
+    \item User updates non-core profile details.
+    \item System validates and saves changes.
+    \item System syncs updated data with DATACORE.
+\end{enumerate} \\ 
+\hline
+\textbf{Postconditions} & 
+\begin{itemize}
+    \item User profile is updated and synchronized with DATACORE; changes are timestamped and logged.
+\end{itemize} \\ 
+\hline
+\textbf{Alternative Flows} & 
+\begin{enumerate}
+    \item \textbf{DATACORE unavailable:} DATACORE unavailable $\rightarrow$ Updates stored locally until sync resumes.
+\end{enumerate} \\ 
+\hline
+\textbf{Exception Flows} & 
+\begin{itemize}
+    \item \textbf{Invalid update request:} System rejects and shows error.
+    \item \textbf{Sync conflict:} DATACORE treated as source of truth.
+\end{itemize} \\ 
+\hline
+\caption{Use Case UC-01b: Profile Management}
+\end{longtable}
+\end{center}
+
