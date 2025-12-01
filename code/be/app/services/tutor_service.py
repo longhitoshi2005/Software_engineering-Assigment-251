@@ -464,3 +464,84 @@ class TutorService:
             "avatar_url": upload_result["secure_url"],
             "message": "Avatar uploaded successfully"
         }
+
+    # ==========================================
+    # 5. STATS RECALCULATION
+    # ==========================================
+    @staticmethod
+    async def recalculate_tutor_stats(tutor_profile_id: Optional[PydanticObjectId] = None):
+        """
+        Recalculates tutor statistics from actual session and feedback data.
+        Can recalculate for a specific tutor or all tutors if no ID provided.
+        
+        This should be called:
+        - After bulk data imports/seeds
+        - When stats appear incorrect
+        - As a maintenance task
+        
+        Args:
+            tutor_profile_id: Optional specific tutor to recalculate. If None, recalculates all tutors.
+        """
+        from app.models.internal.session import TutorSession, SessionStatus
+        from app.models.internal.feedback import SessionFeedback, FeedbackStatus
+        
+        # Find tutors to update
+        if tutor_profile_id:
+            tutors = [await TutorProfile.get(tutor_profile_id)]
+            if not tutors[0]:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor not found")
+        else:
+            tutors = await TutorProfile.find_all().to_list()
+        
+        for tutor in tutors:
+            # 1. Count total COMPLETED sessions where this tutor was the tutor
+            completed_sessions = await TutorSession.find(
+                TutorSession.tutor.id == tutor.id,
+                TutorSession.status == SessionStatus.COMPLETED
+            ).to_list()
+            
+            total_sessions = len(completed_sessions)
+            
+            # 2. Count unique students across all completed sessions
+            unique_students = set()
+            for session in completed_sessions:
+                await session.fetch_link(TutorSession.students)
+                if session.students:
+                    for student in session.students:
+                        if isinstance(student, Link):
+                            await student.fetch()
+                        unique_students.add(str(student.id))
+            
+            total_students = len(unique_students)
+            
+            # 3. Get all SUBMITTED feedbacks for this tutor
+            submitted_feedbacks = await SessionFeedback.find(
+                SessionFeedback.tutor.id == tutor.id,
+                SessionFeedback.status == FeedbackStatus.SUBMITTED
+            ).to_list()
+            
+            total_feedbacks = len(submitted_feedbacks)
+            
+            # 4. Calculate average rating from SUBMITTED feedbacks that have ratings
+            ratings = [fb.rating for fb in submitted_feedbacks if fb.rating is not None]
+            average_rating = round(sum(ratings) / len(ratings), 2) if ratings else 0.0
+            
+            # 5. Calculate response rate (for now, keep at 100% - can be enhanced later)
+            response_rate = 100
+            
+            # 6. Update tutor stats
+            tutor.stats.average_rating = average_rating
+            tutor.stats.total_feedbacks = total_feedbacks
+            tutor.stats.total_sessions = total_sessions
+            tutor.stats.total_students = total_students
+            tutor.stats.response_rate = response_rate
+            tutor.updated_at = datetime.now(timezone.utc)
+            
+            await tutor.save()
+            
+            print(f"Updated stats for tutor {tutor.id}: {total_sessions} sessions, {total_students} students, {total_feedbacks} feedbacks, {average_rating} avg rating")
+        
+        return {
+            "updated_count": len(tutors),
+            "message": f"Successfully recalculated stats for {len(tutors)} tutor(s)"
+        }

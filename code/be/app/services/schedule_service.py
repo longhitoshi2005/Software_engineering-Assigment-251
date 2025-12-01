@@ -11,6 +11,7 @@ from app.models.internal.student_profile import StudentProfile
 from app.models.internal.availability import AvailabilitySlot
 from app.models.internal.session import TutorSession, SessionStatus, NegotiationProposal
 from app.models.internal.notification import NotificationType
+from app.models.internal.feedback import SessionFeedback
 from app.models.external.course import Course
 from app.models.enums.role import UserRole
 
@@ -269,11 +270,13 @@ class ScheduleService:
             mode=payload.mode,
             location=payload.location,
             session_request_type=payload.session_request_type,
+            max_capacity=payload.requested_max_capacity or 1,  # Student's requested capacity
+            note=payload.note,
             status=SessionStatus.WAITING_FOR_TUTOR
         )
         await session.save()
         
-        return await ScheduleService._map_session_response(session)
+        return await ScheduleService._map_session_response(session, student_user)
 
     @staticmethod
     async def propose_negotiation(
@@ -325,7 +328,7 @@ class ScheduleService:
         proposed_end = payload.new_end_time or session.end_time
         
         overlap_check = await TutorSession.find_one(
-            TutorSession.tutor.id == session.tutor.id,
+            TutorSession.tutor.id == session.tutor.ref.id,
             TutorSession.status == SessionStatus.CONFIRMED,
             TutorSession.start_time < proposed_end,
             TutorSession.end_time > proposed_start
@@ -351,16 +354,20 @@ class ScheduleService:
         session.status = SessionStatus.WAITING_FOR_STUDENT
         await session.save()
         
+        # Fetch all links before sending notification
+        await session.fetch_all_links()
+        
         # NOTIFICATION: Notify student about counter-offer
-        student_user = await session.students[0].fetch_link(StudentProfile.user)
+        student = session.students[0]
+        await student.fetch_link(StudentProfile.user)
         await NotificationService.create_system_notification(
-            receiver_user=student_user.user,
+            receiver_user=student.user,
             n_type=NotificationType.BOOKING_REQUEST,
             session=session,
             extra_message=f"The tutor has proposed changes to your session request. Message: {payload.message}"
         )
         
-        return await ScheduleService._map_session_response(session)
+        return await ScheduleService._map_session_response(session, user)
 
     @staticmethod
     async def resolve_negotiation(
@@ -466,7 +473,7 @@ class ScheduleService:
             )
 
         await session.save()
-        return await ScheduleService._map_session_response(session)
+        return await ScheduleService._map_session_response(session, user)
 
     # ==========================================
     # 3. SESSION STATE ACTIONS
@@ -532,7 +539,7 @@ class ScheduleService:
             
             # Find and split availability slot
             original_slot = await AvailabilitySlot.find_one(
-                AvailabilitySlot.tutor.id == session.tutor.id,
+                AvailabilitySlot.tutor.id == session.tutor.ref.id,
                 AvailabilitySlot.start_time <= session.start_time,
                 AvailabilitySlot.end_time >= session.end_time,
                 AvailabilitySlot.is_booked == False
@@ -552,8 +559,12 @@ class ScheduleService:
             if confirm_details.final_location_link:
                 session.location = confirm_details.final_location_link
             
+            # Fetch all links before sending notifications
+            await session.fetch_all_links()
+            
             # NOTIFICATION: Notify student that session is confirmed
-            student = await session.students[0].fetch_link(StudentProfile.user)
+            student = session.students[0]
+            await student.fetch_link(StudentProfile.user)
             await NotificationService.create_system_notification(
                 receiver_user=student.user,
                 n_type=NotificationType.SESSION_CONFIRMED,
@@ -562,9 +573,10 @@ class ScheduleService:
             )
             
             # NOTIFICATION: Also notify tutor
-            tutor_user = await session.tutor.fetch_link(TutorProfile.user)
+            tutor = session.tutor
+            await tutor.fetch_link(TutorProfile.user)
             await NotificationService.create_system_notification(
-                receiver_user=tutor_user.user,
+                receiver_user=tutor.user,
                 n_type=NotificationType.SESSION_CONFIRMED,
                 session=session,
                 extra_message="You have confirmed a new session."
@@ -582,8 +594,12 @@ class ScheduleService:
             session.cancellation_reason = reason or "Tutor declined request."
             # NOTE: NO slot restoration (Cost of Commitment)
             
+            # Fetch all links before sending notification
+            await session.fetch_all_links()
+            
             # NOTIFICATION: Notify student that session was rejected
-            student = await session.students[0].fetch_link(StudentProfile.user)
+            student = session.students[0]
+            await student.fetch_link(StudentProfile.user)
             await NotificationService.create_system_notification(
                 receiver_user=student.user,
                 n_type=NotificationType.SESSION_REJECTED,
@@ -635,19 +651,27 @@ class ScheduleService:
                     session.status = SessionStatus.CANCELLED
                     session.cancelled_by = "STUDENT"
                     
+                    # Fetch all links before sending notification
+                    await session.fetch_all_links()
+                    
                     # NOTIFICATION: Notify tutor about cancellation
-                    tutor_user = await session.tutor.fetch_link(TutorProfile.user)
+                    tutor = session.tutor
+                    await tutor.fetch_link(TutorProfile.user)
                     await NotificationService.create_system_notification(
-                        receiver_user=tutor_user.user,
+                        receiver_user=tutor.user,
                         n_type=NotificationType.SESSION_CANCELLED,
                         session=session,
                         extra_message=f"The student has cancelled the session. Reason: {reason or 'Not specified'}"
                     )
                 else:
+                    # Fetch all links before sending notification
+                    await session.fetch_all_links()
+                    
                     # NOTIFICATION: Notify tutor that a student left (but session continues)
-                    tutor_user = await session.tutor.fetch_link(TutorProfile.user)
+                    tutor = session.tutor
+                    await tutor.fetch_link(TutorProfile.user)
                     await NotificationService.create_system_notification(
-                        receiver_user=tutor_user.user,
+                        receiver_user=tutor.user,
                         n_type=NotificationType.SESSION_CANCELLED,
                         session=session,
                         extra_message="A student has left the group session."
@@ -670,6 +694,10 @@ class ScheduleService:
                 )
             session.status = SessionStatus.COMPLETED
             
+            # Auto-create feedback records for all students
+            from app.services.feedback_service import FeedbackService
+            await FeedbackService.create_feedback_records_for_session(session)
+            
         else:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, 
@@ -677,44 +705,54 @@ class ScheduleService:
             )
 
         await session.save()
-        return await ScheduleService._map_session_response(session)
+        return await ScheduleService._map_session_response(session, user)
 
     # ==========================================
     # 4. SESSION RETRIEVAL
     # ==========================================
     @staticmethod
-    async def get_user_sessions(user: User) -> List[SessionResponse]:
+    async def get_user_sessions(user: User, role_context: Optional[str] = None) -> List[SessionResponse]:
         """
-        Retrieves all sessions relevant to the user (as tutor or student).
+        Retrieves all sessions relevant to the user based on role context.
         
         Args:
             user: The authenticated user
+            role_context: Optional "student" or "tutor" to specify which sessions to return
             
         Returns:
             List of sessions sorted by start time (descending)
         """
-        tutor_profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
-        student_profile = await StudentProfile.find_one(StudentProfile.user.id == user.id)
-        
         sessions = []
         
-        # Get sessions where user is tutor
-        if tutor_profile:
-            tutor_sessions = await TutorSession.find(
-                TutorSession.tutor.id == tutor_profile.id
-            ).sort("-start_time").to_list()
-            sessions.extend(tutor_sessions)
+        # If role context is explicitly specified, use it
+        if role_context == "student":
+            student_profile = await StudentProfile.find_one(StudentProfile.user.id == user.id)
+            if student_profile:
+                sessions = await TutorSession.find(
+                    TutorSession.students.id == student_profile.id
+                ).sort("-start_time").to_list()
+        elif role_context == "tutor":
+            tutor_profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
+            if tutor_profile:
+                sessions = await TutorSession.find(
+                    TutorSession.tutor.id == tutor_profile.id
+                ).sort("-start_time").to_list()
+        else:
+            # Default: Check for student profile first (prioritize student view)
+            student_profile = await StudentProfile.find_one(StudentProfile.user.id == user.id)
+            if student_profile:
+                sessions = await TutorSession.find(
+                    TutorSession.students.id == student_profile.id
+                ).sort("-start_time").to_list()
+            else:
+                # Fall back to tutor sessions if no student profile
+                tutor_profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
+                if tutor_profile:
+                    sessions = await TutorSession.find(
+                        TutorSession.tutor.id == tutor_profile.id
+                    ).sort("-start_time").to_list()
         
-        # Get sessions where user is student
-        if student_profile:
-            student_sessions = await TutorSession.find(
-                TutorSession.students.id == student_profile.id
-            ).sort("-start_time").to_list()
-            sessions.extend(student_sessions)
-        
-        # Remove duplicates and map to response
-        unique_sessions = {str(s.id): s for s in sessions}.values()
-        return [await ScheduleService._map_session_response(s) for s in unique_sessions]
+        return [await ScheduleService._map_session_response(s, user) for s in sessions]
 
     @staticmethod
     async def get_session_detail(session_id: str, user: User) -> SessionResponse:
@@ -738,7 +776,7 @@ class ScheduleService:
                 "Session not found"
             )
         
-        return await ScheduleService._map_session_response(session)
+        return await ScheduleService._map_session_response(session, user)
 
     @staticmethod
     async def respond_to_invite(session_id: str, user: User, action: str):
@@ -793,13 +831,14 @@ class ScheduleService:
     # 5. MAPPER (Optimized - DRY Principle)
     # ==========================================
     @staticmethod
-    async def _map_session_response(session: TutorSession) -> SessionResponse:
+    async def _map_session_response(session: TutorSession, user: User) -> SessionResponse:
         """
         Maps internal TutorSession model to SessionResponse schema.
         Optimized to avoid redundant link fetching by using snapshot data from User model.
         
         Args:
             session: The TutorSession document
+            user: The current authenticated user
             
         Returns:
             SessionResponse with all necessary fields populated
@@ -826,13 +865,31 @@ class ScheduleService:
         # Get primary student (first in list)
         student = session.students[0] 
         await student.fetch_link(StudentProfile.user)
+        await student.user.fetch_link(User.sso_info)
+        
+        # Get feedback status for current user (only if user is a student)
+        feedback_status = None
+        if UserRole.STUDENT in user.roles:
+            # Find student profile for current user
+            student_profile = await StudentProfile.find_one(StudentProfile.user.id == user.id)
+            if student_profile:
+                # Check if this student is part of the session
+                student_ids = [str(s.id) for s in session.students]
+                if str(student_profile.id) in student_ids:
+                    # Query feedback for this session and student
+                    feedback = await SessionFeedback.find_one(
+                        SessionFeedback.session.id == session.id,
+                        SessionFeedback.student.id == student_profile.id
+                    )
+                    if feedback:
+                        feedback_status = feedback.status.value
         
         # Use snapshot data from User model (DRY - no redundant fetching)
         return SessionResponse(
             id=str(session.id),
             tutor_id=str(tutor.id),
             tutor_name=tutor.user.full_name,  # Snapshot data
-            student_id=str(student.id),
+            student_id=student.user.sso_info.identity_id,  # MSSV from SSO
             student_name=student.user.full_name,  # Snapshot data
             course_code=session.course.code,
             course_name=session.course.name,
@@ -842,5 +899,11 @@ class ScheduleService:
             location=session.location,
             status=session.status,
             proposal=proposal_res,
-            created_at=session.created_at
+            created_at=session.created_at,
+            # Session structure fields
+            session_request_type=session.session_request_type,
+            max_capacity=session.max_capacity,
+            is_public=session.is_public,
+            # Feedback status
+            feedback_status=feedback_status
         )

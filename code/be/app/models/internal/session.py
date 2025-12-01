@@ -69,6 +69,9 @@ class TutorSession(Document):
     # Nhu cầu ban đầu của Student (Giúp Tutor dễ dàng đặt Capacity/Publicity)
     session_request_type: RequestType = RequestType.ONE_ON_ONE
     
+    # Student's note when making the booking request
+    note: Optional[str] = None
+    
     # 4. Status & History
     status: SessionStatus
     proposal: Optional[NegotiationProposal] = None

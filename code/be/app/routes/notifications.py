@@ -32,3 +32,17 @@ async def mark_notification_read(
     Users can only mark their own notifications as read.
     """
     return await NotificationService.mark_as_read(notification_id, current_user)
+
+
+@router.put("/mark-all-read", status_code=status.HTTP_200_OK)
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    [All Users] Mark all notifications as read for the current user.
+    
+    Returns the number of notifications marked as read.
+    """
+    count = await NotificationService.mark_all_as_read(current_user)
+    return {"message": f"Marked {count} notifications as read", "count": count}
+

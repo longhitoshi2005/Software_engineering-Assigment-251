@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { getClientRole, Role } from "@/lib/role";
 import api from "@/lib/api";
+import NotificationDropdown from "./NotificationDropdown";
 
 export default function DynamicNavbar() {
   const pathname = usePathname();
@@ -217,6 +218,11 @@ export default function DynamicNavbar() {
             </div>
           );
         })}
+      </div>
+
+      {/* Notification Bell */}
+      <div className="flex items-center">
+        <NotificationDropdown />
       </div>
     </nav>
   );

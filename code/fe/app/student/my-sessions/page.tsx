@@ -1,116 +1,327 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { swalConfirm, swalSuccess, swalError } from "@/lib/swal";
-import { MY_UPCOMING_SESSIONS, MY_COMPLETED_SESSIONS } from "@/lib/mocks";
+import { format, differenceInHours } from "date-fns";
+import { parseUTC } from "@/lib/dateUtils";
+import SessionCard from "@/components/SessionCard";
+import NegotiationModal from "./NegotiationModal";
+import FeedbackModal from "@/components/FeedbackModal";
 
 type SessionStatus =
+  | "WAITING_FOR_TUTOR"
+  | "WAITING_FOR_STUDENT"
   | "CONFIRMED"
-  | "PENDING"
-  | "NEEDS_FEEDBACK"
-  | "FEEDBACK_SKIPPED";
+  | "REJECTED"
+  | "CANCELLED"
+  | "COMPLETED";
 
 type Session = {
   id: string;
-  datetime: string;
-  tutorName: string;
-  course: string;
+  tutor_id: string;
+  tutor_name: string;
+  student_id: string;
+  student_name: string;
+  course_code: string;
+  course_name: string;
+  start_time: string;
+  end_time: string;
   mode: string;
+  location: string | null;
   status: SessionStatus;
-  note?: string;
-  focus?: string;
+  note?: string | null;
+  session_request_type?: string;
+  max_capacity?: number;
+  is_public?: boolean;
+  proposal?: {
+    new_start_time?: string;
+    new_end_time?: string;
+    new_mode?: string;
+    new_location?: string;
+    tutor_message: string;
+    new_max_capacity?: number;
+    new_is_public?: boolean;
+  } | null;
+};
+
+type AvailabilitySlot = {
+  id: string;
+  tutor_id: string;
+  start_time: string;
+  end_time: string;
+  allowed_modes: string[];
+  is_booked: boolean;
 };
 
 export default function MySessionsPage() {
   const router = useRouter();
   
-  const [upcomingSessions, setUpcomingSessions] = useState<Session[]>(MY_UPCOMING_SESSIONS as Session[]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [completedSessions] = useState<Session[]>(MY_COMPLETED_SESSIONS as Session[]);
+  // Modal states
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalSession, setModalSession] = useState<Session | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleSession, setRescheduleSession] = useState<Session | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [rescheduleMessage, setRescheduleMessage] = useState("");
+  const [proposalModalOpen, setProposalModalOpen] = useState(false);
+  const [proposalSession, setProposalSession] = useState<Session | null>(null);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackSessionId, setFeedbackSessionId] = useState<string | null>(null);
 
-  const renderStatusBadge = (status: SessionStatus) => {
-    switch (status) {
-      case "CONFIRMED":
-        return (
-          <span className="px-2 py-1 rounded-md text-[0.65rem] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Confirmed
-          </span>
-        );
-      case "PENDING":
-        return (
-          <span className="px-2 py-1 rounded-md text-[0.65rem] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            Awaiting Tutor Confirmation
-          </span>
-        );
-      case "NEEDS_FEEDBACK":
-        return (
-          <span className="px-2 py-1 rounded-md text-[0.65rem] font-semibold bg-light-heavy-blue text-white border border-light-heavy-blue shadow-sm">
-            Needs Feedback
-          </span>
-        );
-      case "FEEDBACK_SKIPPED":
-        return (
-          <span className="px-2 py-1 rounded-md text-[0.65rem] font-semibold bg-black/5 text-black/50 border border-black/10">
-            Feedback Skipped
-          </span>
-        );
-      default:
-        return null;
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:8000/sessions/?role=student", {
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to load sessions");
+
+      const data: Session[] = await response.json();
+      setSessions(data);
+    } catch (error) {
+      console.error("Error loading sessions:", error);
+      await swalError("Failed to load sessions", "Please try again later.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Filter sessions
+  const upcomingSessions = sessions.filter(s => 
+    s.status === "WAITING_FOR_TUTOR" || 
+    s.status === "WAITING_FOR_STUDENT" || 
+    s.status === "CONFIRMED"
+  );
+  const completedSessions = sessions.filter(s => s.status === "COMPLETED");
+
+  const getModeLabel = (mode: string) => {
+    if (mode === 'ONLINE') return 'Online';
+    if (mode === 'CAMPUS_1') return 'Campus 1';
+    if (mode === 'CAMPUS_2') return 'Campus 2';
+    return mode;
+  };
+
   const handleReschedule = async (sess: Session) => {
-    // Open in-page reschedule modal (instead of navigating to a separate page)
-    setRescheduleSession(sess);
-    setRescheduleOpen(true);
+    // Check if within 2 hours
+    const hoursUntil = differenceInHours(parseUTC(sess.start_time), new Date());
+    if (hoursUntil < 2) {
+      const proceed = await swalConfirm(
+        "Late Reschedule Warning",
+        "You are rescheduling less than 2 hours before the session. This will be flagged in your record. Continue?",
+        { confirmText: "Yes, reschedule anyway", cancelText: "Cancel" }
+      );
+      if (!proceed) return;
+    }
+
+    // Load available slots for this tutor
+    try {
+      const response = await fetch(`http://localhost:8000/availability/${sess.tutor_id}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to load availability");
+
+      const slots: AvailabilitySlot[] = await response.json();
+      const freeSlots = slots.filter(slot => !slot.is_booked);
+
+      if (freeSlots.length === 0) {
+        await swalError("No Available Slots", "This tutor has no available time slots. Please contact them directly.");
+        return;
+      }
+
+      setAvailableSlots(freeSlots);
+      setRescheduleSession(sess);
+      setRescheduleOpen(true);
+    } catch (error) {
+      console.error("Error loading slots:", error);
+      await swalError("Failed to load availability", "Please try again later.");
+    }
+  };
+
+  const saveReschedule = async () => {
+    if (!rescheduleSession || !selectedSlot) {
+      await swalError("Please select a slot", "Choose one of the available slots to reschedule.");
+      return;
+    }
+
+    if (!rescheduleMessage.trim()) {
+      await swalError("Message required", "Please explain why you want to reschedule.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${rescheduleSession.id}/negotiate`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_start_time: selectedSlot.start_time,
+          new_end_time: selectedSlot.end_time,
+          new_mode: selectedSlot.allowed_modes[0],
+          message: rescheduleMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Failed to reschedule" }));
+        throw new Error(errorData.detail || "Failed to reschedule");
+      }
+
+      await swalSuccess("Reschedule Request Sent", "Your tutor will be notified. The session is now pending their approval.");
+      setRescheduleOpen(false);
+      setRescheduleSession(null);
+      setSelectedSlot(null);
+      setRescheduleMessage("");
+      loadSessions();
+    } catch (error) {
+      console.error("Error rescheduling:", error);
+      await swalError("Failed to reschedule", error instanceof Error ? error.message : "Please try again.");
+    }
   };
 
   const handleCancel = async (sess: Session) => {
-    const ok = await swalConfirm(
-      "Cancel session",
-      "Are you sure you want to cancel this session? This cannot be undone.",
-      { confirmText: "Yes, cancel", cancelText: "Keep session" }
-    );
+    // Check if within 2 hours
+    const hoursUntil = differenceInHours(parseUTC(sess.start_time), new Date());
+    
+    let message = "Are you sure you want to cancel this session? This cannot be undone.";
+    if (hoursUntil < 2) {
+      message = "⚠️ You are cancelling less than 2 hours before the session. This will be flagged in your record and may affect your training credits. Are you sure?";
+    }
+
+    const ok = await swalConfirm("Cancel Session", message, { 
+      confirmText: "Yes, cancel", 
+      cancelText: "Keep session" 
+    });
     if (!ok) return;
 
-    // Mock cancel: remove from upcoming sessions and show success
-    setUpcomingSessions((prev) => prev.filter((s) => s.id !== sess.id));
-    await swalSuccess("Session cancelled", "Your session has been cancelled (mock).");
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/cancel`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          reason: hoursUntil < 2 ? "Late cancellation (< 2 hours)" : "Student cancelled" 
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Failed to cancel" }));
+        throw new Error(errorData.detail || "Failed to cancel session");
+      }
+
+      await swalSuccess("Session Cancelled", hoursUntil < 2 ? "Your session has been cancelled. A late cancellation flag has been recorded." : "Your session has been cancelled.");
+      loadSessions();
+    } catch (error) {
+      console.error("Error cancelling:", error);
+      await swalError("Failed to cancel", error instanceof Error ? error.message : "Please try again.");
+    }
   };
 
   const handleCancelRequest = async (sess: Session) => {
+    // For non-confirmed sessions, use simpler cancel flow
     const ok = await swalConfirm(
-      "Cancel request",
+      "Cancel Request",
       "Are you sure you want to cancel this request? This cannot be undone.",
       { confirmText: "Yes, cancel", cancelText: "Keep request" }
     );
     if (!ok) return;
 
-    // Mock cancel: remove from upcoming sessions and show success
-    setUpcomingSessions((prev) => prev.filter((s) => s.id !== sess.id));
-    await swalSuccess("Session request cancelled", "Your session request has been cancelled.");
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/cancel`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Student cancelled request" }),
+      });
+
+      if (!response.ok) throw new Error("Failed to cancel");
+
+      await swalSuccess("Request Cancelled", "Your session request has been cancelled.");
+      loadSessions();
+    } catch (error) {
+      console.error("Error cancelling:", error);
+      await swalError("Failed to cancel", "Please try again.");
+    }
+  };
+
+  const handleViewProposal = (sess: Session) => {
+    setProposalSession(sess);
+    setProposalModalOpen(true);
+  };
+
+  const handleAcceptProposal = async () => {
+    if (!proposalSession) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${proposalSession.id}/negotiate/accept`, {
+        method: "PUT",
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to accept proposal");
+
+      await swalSuccess("Proposal Accepted", "The session has been updated with the new details.");
+      setProposalModalOpen(false);
+      setProposalSession(null);
+      loadSessions();
+    } catch (error) {
+      console.error("Error accepting proposal:", error);
+      await swalError("Failed to accept", "Please try again.");
+    }
+  };
+
+  const handleRejectProposal = async () => {
+    if (!proposalSession) return;
+
+    const ok = await swalConfirm(
+      "Reject Proposal",
+      "Rejecting this proposal will cancel the session entirely. You'll need to create a new booking request if you still want to meet this tutor.",
+      { confirmText: "Yes, reject", cancelText: "Keep proposal" }
+    );
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${proposalSession.id}/negotiate/reject`, {
+        method: "PUT",
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error("Failed to reject proposal");
+
+      await swalSuccess("Proposal Rejected", "The session has been cancelled.");
+      setProposalModalOpen(false);
+      setProposalSession(null);
+      loadSessions();
+    } catch (error) {
+      console.error("Error rejecting proposal:", error);
+      await swalError("Failed to reject", "Please try again.");
+    }
   };
 
   const handleSubmitFeedback = (sess: Session) => {
-    router.push("/student/feedback");
+    setFeedbackSessionId(sess.id);
+    setFeedbackModalOpen(true);
   };
 
-  // Modal state for viewing session summary
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalSession, setModalSession] = useState<Session | null>(null);
+  const closeFeedbackModal = () => {
+    setFeedbackModalOpen(false);
+    setFeedbackSessionId(null);
+  };
 
-  // Reschedule modal state
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [rescheduleSession, setRescheduleSession] = useState<Session | null>(null);
-  const [newDatetime, setNewDatetime] = useState("");
-  // Mock available slots for rescheduling - in production, fetch from API
-  const availableSlots = [
-    "Wed · 16:00 – 17:30 · Room B4-205",
-    "Thu · 10:00 – 11:30 · Room B4-205",
-    "Fri · 14:00 – 15:30 · Online",
-  ];
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const handleFeedbackSaved = () => {
+    // Optionally reload sessions to update status
+    loadSessions();
+  };
 
   const handleViewSummary = (sess: Session) => {
     setModalSession(sess);
@@ -122,30 +333,13 @@ export default function MySessionsPage() {
     setModalSession(null);
   };
 
-  const saveReschedule = async () => {
-    if (!rescheduleSession) return;
-    if (!selectedSlot) {
-      await swalError("Please select a slot", "Choose one of the available slots to reschedule.");
-      return;
-    }
-
-    setUpcomingSessions((prev) =>
-      prev.map((s) =>
-        s.id === rescheduleSession.id ? { ...s, datetime: selectedSlot } : s
-      )
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue flex items-center justify-center">
+        <div className="text-center py-10">Loading sessions...</div>
+      </div>
     );
-    setRescheduleOpen(false);
-    setRescheduleSession(null);
-    setNewDatetime("");
-    setSelectedSlot(null);
-    await swalSuccess("Rescheduled Successfully!", "Your session has been moved. Notifications have been sent to your tutor.");
-  };
-
-  const cancelReschedule = () => {
-    setRescheduleOpen(false);
-    setRescheduleSession(null);
-    setNewDatetime("");
-  };
+  }
 
   return (
     <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8 space-y-6">
@@ -159,9 +353,9 @@ export default function MySessionsPage() {
           You can reschedule, cancel, or submit feedback from here.
         </p>
         <p className="text-[0.7rem] text-black/50 mt-2">
-          • You can reschedule / cancel at least <b>2h before the session start</b>. <br/>
+          • You can reschedule / cancel at least <b>2h before the session start</b>. Late changes will be flagged. <br/>
           • Sessions marked &quot;Awaiting Tutor Confirmation&quot; are not final yet. <br />
-          • Completed sessions that have no feedback will ask you to submit feedback.
+          • Completed sessions require feedback submission.
         </p>
       </header>
 
@@ -178,210 +372,24 @@ export default function MySessionsPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {upcomingSessions.map((sess) => (
-            <article
-              key={sess.id}
-              className="bg-soft-white-blue/50 border border-soft-white-blue rounded-lg p-4 grid gap-4 md:grid-cols-[1.2fr_auto]"
-            >
-              {/* left */}
-              <div className="space-y-3">
-                {/* top row */}
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-sm md:text-base font-semibold text-dark-blue">
-                    {sess.datetime}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {renderStatusBadge(sess.status)}
-                    {sess.status === "CONFIRMED" ? (
-                      <span className="px-2 py-1 rounded-md text-[0.65rem] font-semibold bg-light-heavy-blue text-white border border-light-heavy-blue/80 shadow-sm">
-                        Reminder sent
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* detail blocks */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Tutor
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.tutorName}
-                      <br />
-                      <span className="text-[0.65rem] text-black/50">
-                        {sess.course}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Mode
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.mode}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Status
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.status === "CONFIRMED"
-                        ? "Tutor accepted · Scheduled"
-                        : "Waiting · You're in queue"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* note */}
-                {sess.note ? (
-                  <div className="bg-white rounded-md border border-soft-white-blue p-3">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Your request to tutor
-                    </p>
-                    <p className="text-sm text-black/70 leading-relaxed">
-                      {sess.note}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* right actions */}
-              <div className="flex flex-col gap-2 justify-between min-w-[180px]">
-                <div className="flex flex-col gap-2">
-                  {sess.status === "CONFIRMED" ? (
-                    <>
-                      <button
-                        onClick={() => handleReschedule(sess)}
-                        className="w-full rounded-md bg-white text-amber-600 text-sm font-semibold border border-amber-200 px-3 py-2 hover:bg-amber-50 transition"
-                      >
-                        Reschedule
-                      </button>
-
-                      <button
-                        onClick={() => handleCancel(sess)}
-                        className="w-full rounded-md bg-white text-red-500 text-sm font-semibold border border-red-200 px-3 py-2 hover:bg-red-50 transition"
-                      >
-                        Cancel Session
-                      </button>
-                    </>
-                  ) : (
-                    <button 
-                      onClick={() => handleCancelRequest(sess)}
-                      className="w-full rounded-md bg-white text-red-500 text-sm font-semibold border border-red-200 px-3 py-2 hover:bg-red-50 transition"
-                    >
-                      Cancel Request
-                    </button>
-                  )}
-                </div>
-                <p className="text-[0.65rem] text-black/50">
-                  Can reschedule / cancel up to 2h before start (FR-SCH.03).
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-        {/* Session Summary Modal */}
-        {modalOpen && modalSession && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4">
-            <div className="bg-white rounded-lg max-w-3xl w-full shadow-lg border border-black/5 overflow-y-auto max-h-[90vh]">
-              <div className="flex items-center justify-between p-4 border-b border-black/5">
-                <div>
-                  <h3 className="text-lg font-semibold text-dark-blue">Session Summary</h3>
-                  <p className="text-xs text-black/60">Session · {modalSession.datetime}</p>
-                </div>
-                <div>
-                  <button onClick={closeModal} className="text-sm text-black/50 hover:text-black/80 border rounded-full w-8 h-8">X</button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[11px] text-black/60">Tutor</p>
-                    <p className="text-sm text-dark-blue font-semibold">{modalSession.tutorName}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-black/60">Course</p>
-                    <p className="text-sm text-dark-blue font-semibold">{modalSession.course}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[11px] text-black/60">Focus</p>
-                  <p className="text-sm text-black/80">{modalSession.focus || '—'}</p>
-                </div>
-
-                <section className="bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-dark-blue">Tutor&apos;s Summary</h4>
-                  <div className="mt-2 text-sm text-black/80 whitespace-pre-wrap">
-                    {modalSession.course.toLowerCase().includes("digital systems") || modalSession.focus?.toLowerCase().includes("timing") ? (
-  `Session: Sat - Oct 18, 2025 (08:30 - 10:00)
-  Tutor: Truong Q. T.
-
-  Course: Digital Systems (EE2002)
-
-  Focus: Timing diagrams, flip-flop troubleshooting
-
-  Tutor's Summary:
-  Reviewed several timing diagrams for D-type and SR flip-flops.
-
-  We focused on identifying common troubleshooting issues when analyzing outputs. The student initially confused edge-triggered and level-triggered behavior but showed improved understanding by the end of the session.
-
-  Assigned 2 practice exercises on D flip-flops for further practice.
-`
-                    ) : (
-                      modalSession.note || `Tutor summary not available for this session. This is a sample view showing how the tutor's session notes would appear.`
-                    )}
-                  </div>
-                </section>
-              </div>
-            </div>
+        {upcomingSessions.length === 0 ? (
+          <div className="bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-8 text-center">
+            <p className="text-sm text-black/40 italic">No upcoming sessions.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {upcomingSessions.map((sess) => (
+              <SessionCard
+                key={sess.id}
+                session={sess}
+                onCancel={sess.status === "CONFIRMED" ? handleCancel : handleCancelRequest}
+                onReschedule={handleReschedule}
+                onSolve={handleViewProposal}
+              />
+            ))}
           </div>
         )}
-
-        {/* Reschedule modal */}
-        {rescheduleOpen && rescheduleSession ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={cancelReschedule} />
-            <div className="relative max-w-xl w-full mx-4 bg-white rounded-xl shadow-lg border p-6 z-10">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-dark-blue">Reschedule Session</h3>
-                <button onClick={cancelReschedule} className="text-sm text-black/50 hover:text-black" aria-label="Close">✕</button>
-              </div>
-
-              <p className="text-sm text-black/60 mt-2">Current: <b>{rescheduleSession.datetime}</b></p>
-
-              <div className="mt-4">
-                <p className="block text-[0.8rem] text-black/60">Available slots</p>
-                <div className="mt-2 grid gap-2">
-                  {availableSlots.map((slot) => (
-                    <label key={slot} className={`flex items-center gap-3 p-2 rounded-md border ${selectedSlot === slot ? 'border-light-heavy-blue bg-light-heavy-blue/10' : 'border-black/10 bg-white'}`}>
-                      <input
-                        type="radio"
-                        name="slot"
-                        checked={selectedSlot === slot}
-                        onChange={() => setSelectedSlot(slot)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-black/80">{slot}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[0.75rem] text-black/50 mt-2">Choose one of the available slots. In production this list comes from the server.</p>
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2">
-                <button onClick={cancelReschedule} className="rounded-md border px-4 py-2 text-sm bg-white">Cancel</button>
-                <button onClick={saveReschedule} className="rounded-md bg-light-heavy-blue text-white px-4 py-2 text-sm">Save</button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+      </section>
 
       {/* Completed sessions */}
       <section className="bg-white border border-black/5 rounded-xl shadow-sm p-4 md:p-6 space-y-4 mb-10">
@@ -391,95 +399,162 @@ export default function MySessionsPage() {
               Completed Sessions
             </h2>
             <p className="text-sm text-black/60">
-              Fill in feedback to help improve tutoring quality.
+              Submit feedback to help improve tutoring quality.
             </p>
           </div>
         </div>
 
-        <div className="space-y-4">
-          {completedSessions.map((sess) => (
-            <article
-              key={sess.id}
-              className="bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-4 grid gap-4 md:grid-cols-[1.2fr_auto]"
-            >
-              {/* left */}
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-sm md:text-base font-semibold text-dark-blue">
-                    {sess.datetime}
-                  </p>
-                  {renderStatusBadge(sess.status)}
-                </div>
+        {completedSessions.length === 0 ? (
+          <div className="bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-8 text-center">
+            <p className="text-sm text-black/40 italic">No completed sessions yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {completedSessions.map((sess) => (
+              <SessionCard
+                key={sess.id}
+                session={sess}
+                onFeedback={handleSubmitFeedback}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Tutor
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.tutorName}
-                      <br />
-                      <span className="text-[0.65rem] text-black/50">
-                        {sess.course}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Focus
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.focus || "—"}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-md border border-soft-white-blue p-2.5">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      Status
-                    </p>
-                    <p className="text-sm text-black/75 leading-snug">
-                      {sess.status === "NEEDS_FEEDBACK"
-                        ? "Completed · Feedback pending"
-                        : "Completed · Feedback deadline passed"}
-                    </p>
-                  </div>
-                </div>
+      {/* Reschedule Modal */}
+      {rescheduleOpen && rescheduleSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRescheduleOpen(false)} />
+          <div className="relative max-w-xl w-full mx-4 bg-white rounded-xl shadow-lg border p-6 z-10">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-dark-blue">Reschedule Session</h3>
+              <button onClick={() => setRescheduleOpen(false)} className="text-sm text-black/50 hover:text-black" aria-label="Close">✕</button>
+            </div>
 
-                {sess.note ? (
-                  <div className="bg-white rounded-md border border-soft-white-blue p-3">
-                    <p className="text-[0.7rem] font-semibold text-dark-blue mb-1">
-                      {sess.status === "NEEDS_FEEDBACK"
-                        ? "Session summary"
-                        : "System note"}
-                    </p>
-                    <p className="text-sm text-black/70 leading-relaxed">
-                      {sess.note}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
+            <p className="text-sm text-black/60 mt-2">
+              Current: <b>{format(parseUTC(rescheduleSession.start_time), 'EEE · MMM dd, HH:mm')} - {format(parseUTC(rescheduleSession.end_time), 'HH:mm')}</b>
+            </p>
 
-              {/* right actions */}
-              <div className="flex flex-col gap-2 justify-between min-w-[180px]">
-                {sess.status === "NEEDS_FEEDBACK" ? (
-                  <button
-                    onClick={() => handleSubmitFeedback(sess)}
-                    className="w-full rounded-md bg-light-heavy-blue text-white text-sm font-semibold px-3 py-2 hover:bg-light-blue transition"
+            <div className="mt-4">
+              <p className="block text-[0.8rem] text-black/60">Available slots from {rescheduleSession.tutor_name}</p>
+              <div className="mt-2 grid gap-2 max-h-60 overflow-y-auto">
+                {availableSlots.map((slot) => (
+                  <label 
+                    key={slot.id} 
+                    className={`flex items-center gap-3 p-2 rounded-md border cursor-pointer ${
+                      selectedSlot?.id === slot.id 
+                        ? 'border-light-heavy-blue bg-light-heavy-blue/10' 
+                        : 'border-black/10 bg-white hover:bg-gray-50'
+                    }`}
                   >
-                    Submit Feedback
-                  </button>
-                ) : (
-                  <button onClick={() => handleViewSummary(sess)} className="w-full rounded-md bg-white text-dark-blue text-sm font-semibold border border-light-heavy-blue/40 px-3 py-2 hover:bg-soft-white-blue/70 transition">
-                    View Session Summary
-                  </button>
-                )}
-                <p className="text-[0.65rem] text-black/50">
-                  Your feedback is linked to this session (FR-FBK.01).
+                    <input
+                      type="radio"
+                      name="slot"
+                      checked={selectedSlot?.id === slot.id}
+                      onChange={() => setSelectedSlot(slot)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-black/80">
+                      {format(parseUTC(slot.start_time), 'EEE · MMM dd, HH:mm')} - {format(parseUTC(slot.end_time), 'HH:mm')}
+                      <span className="text-xs text-black/50 ml-2">({slot.allowed_modes.join(', ')})</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-[0.8rem] text-black/60 mb-1">Reason for rescheduling (required)</label>
+              <textarea
+                value={rescheduleMessage}
+                onChange={(e) => setRescheduleMessage(e.target.value)}
+                placeholder="Please explain why you need to reschedule..."
+                className="w-full border border-black/10 rounded-md p-2 text-sm"
+                rows={3}
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setRescheduleOpen(false)} className="rounded-md border px-4 py-2 text-sm bg-white hover:bg-gray-50">Cancel</button>
+              <button onClick={saveReschedule} className="rounded-md bg-light-heavy-blue text-white px-4 py-2 text-sm hover:bg-light-blue">Send Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proposal Modal */}
+      {proposalModalOpen && proposalSession && proposalSession.proposal && (
+        <NegotiationModal
+          session={proposalSession}
+          onClose={() => {
+            setProposalModalOpen(false);
+            setProposalSession(null);
+          }}
+          onAccept={handleAcceptProposal}
+          onReject={handleRejectProposal}
+        />
+      )}
+
+      {/* Session Summary Modal */}
+      {modalOpen && modalSession && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full shadow-lg border border-black/5 overflow-y-auto max-h-[90vh] mt-10">
+            <div className="flex items-center justify-between p-4 border-b border-black/5">
+              <div>
+                <h3 className="text-lg font-semibold text-dark-blue">Session Summary</h3>
+                <p className="text-xs text-black/60">
+                  {format(parseUTC(modalSession.start_time), 'EEE · MMM dd, HH:mm')} - {format(parseUTC(modalSession.end_time), 'HH:mm')}
                 </p>
               </div>
-            </article>
-          ))}
+              <button onClick={closeModal} className="text-sm text-black/50 hover:text-black/80 border rounded-full w-8 h-8">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[11px] text-black/60">Tutor</p>
+                  <p className="text-sm text-dark-blue font-semibold">{modalSession.tutor_name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-black/60">Course</p>
+                  <p className="text-sm text-dark-blue font-semibold">{modalSession.course_code} - {modalSession.course_name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-black/60">Mode</p>
+                  <p className="text-sm text-dark-blue font-semibold">{getModeLabel(modalSession.mode)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-black/60">Location</p>
+                  <p className="text-sm text-dark-blue font-semibold">{modalSession.location || 'Not specified'}</p>
+                </div>
+              </div>
+
+              {modalSession.note && (
+                <div>
+                  <p className="text-[11px] text-black/60">Your Request</p>
+                  <p className="text-sm text-black/80">{modalSession.note}</p>
+                </div>
+              )}
+
+              <section className="bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-dark-blue">Session Complete</h4>
+                <p className="mt-2 text-sm text-black/80">
+                  This session has been completed. You can submit feedback to help improve tutoring quality.
+                </p>
+              </section>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
+
+      {/* Feedback Modal */}
+      {feedbackModalOpen && feedbackSessionId && (
+        <FeedbackModal
+          sessionId={feedbackSessionId}
+          onClose={closeFeedbackModal}
+          onSaved={handleFeedbackSaved}
+        />
+      )}
     </div>
   );
 }

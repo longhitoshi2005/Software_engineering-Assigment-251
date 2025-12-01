@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from app.core.deps import get_current_user, RoleChecker
 from app.models.internal.user import User
 from app.models.enums.role import UserRole
@@ -25,3 +25,22 @@ async def update_my_student_profile(
     [Student Only] Allows the student to update editable fields (email_personal).
     """
     return await StudentService.update_student_profile(current_user, payload)
+
+@router.post("/stats/recalculate", status_code=status.HTTP_200_OK)
+async def recalculate_all_student_stats(
+    current_user: User = Depends(RoleChecker([UserRole.ADMIN, UserRole.DEPT_CHAIR]))
+):
+    """
+    [Admin/Dept Chair Only] Recalculates learning statistics for all students based on completed sessions.
+    
+    This endpoint:
+    - Counts COMPLETED sessions for each student
+    - Calculates total learning hours from session durations
+    - Counts unique tutors worked with
+    - Updates attendance rate (currently 100%, can be enhanced)
+    
+    Returns:
+        Number of student profiles updated
+    """
+    updated_count = await StudentService.recalculate_student_stats()
+    return {"message": f"Successfully recalculated stats for {updated_count} students", "updated_count": updated_count}

@@ -102,3 +102,12 @@ class SessionResponse(BaseModel):
     proposal: Optional[NegotiationResponse] = None # Contains active negotiation terms
 
     created_at: datetime
+    
+    # Session structure fields
+    session_request_type: RequestType = RequestType.ONE_ON_ONE
+    max_capacity: int = 1
+    is_public: bool = False
+    note: Optional[str] = None
+    
+    # Feedback status for current user (student only)
+    feedback_status: Optional[str] = None

@@ -30,10 +30,17 @@ async def request_booking(
 
 @router.get("/", response_model=List[SessionResponse])
 async def get_my_sessions(
+    role: Optional[str] = None,  # "student" or "tutor" to specify which view
     current_user: User = Depends(get_current_user)
 ):
-    """[Tutor/Student] Retrieves the list of sessions relevant to the current user."""
-    return await ScheduleService.get_user_sessions(current_user)
+    """[Tutor/Student] Retrieves the list of sessions relevant to the current user.
+    
+    Optional query parameter 'role' can be used to specify which perspective:
+    - role=student: Only sessions where user is a student
+    - role=tutor: Only sessions where user is a tutor
+    - If not specified, defaults to student view if student profile exists, otherwise tutor view
+    """
+    return await ScheduleService.get_user_sessions(current_user, role)
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session_detail(

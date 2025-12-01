@@ -20,6 +20,7 @@ class UserShortResponse(BaseModel):
     avatar_url: Optional[str] = None
     roles: List[UserRole] # Trả về Enum để FE dễ switch case
     is_active: bool
+    student_id: Optional[str] = None  # identity_id from SSO (MSSV for students)
 
 # 2. Full Detail View (Cho trang Profile)
 class UserDetailResponse(UserShortResponse):

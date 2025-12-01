@@ -3,9 +3,17 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 import { LocationMode, LocationModeLabels } from "@/types/location";
 import { TutorSearchResult } from "@/types/tutorSearch";
 import { BookingRequest, SessionRequestType } from "@/types/session";
+import { AvailabilitySlot } from "@/types/availability";
+import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
+
+// Constants
+const MINIMUM_DURATION_MINUTES = 30;
+const SLIDER_STEP_MINUTES = 15;
 
 function BookSessionContent() {
   const router = useRouter();
@@ -14,20 +22,23 @@ function BookSessionContent() {
 
   // Data states
   const [tutor, setTutor] = useState<TutorSearchResult | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Form states - Manual date/time entry
+  // Slot-based selection
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [sliderRange, setSliderRange] = useState<[number, number]>([0, 0]); // Minutes from slot start
+
+  // Form states
   const [courseCode, setCourseCode] = useState("");
-  const [requestDate, setRequestDate] = useState(""); // YYYY-MM-DD
-  const [startTime, setStartTime] = useState(""); // HH:MM
-  const [endTime, setEndTime] = useState(""); // HH:MM
   const [mode, setMode] = useState<LocationMode>(LocationMode.ONLINE);
   const [sessionType, setSessionType] = useState<SessionRequestType>(SessionRequestType.ONE_ON_ONE);
   const [invitedEmails, setInvitedEmails] = useState("");
   const [maxCapacity, setMaxCapacity] = useState(1);
   const [note, setNote] = useState("");
 
-  // Load tutor data on mount
+  // Load tutor data and availability on mount
   useEffect(() => {
     if (!tutorId) {
       router.push("/student/find-tutor");
@@ -38,6 +49,17 @@ function BookSessionContent() {
       try {
         setLoading(true);
 
+        // Fetch current user info
+        const userRes = await fetch("http://localhost:8000/users/me", {
+          credentials: "include",
+        });
+
+        if (!userRes.ok) throw new Error("Failed to load user information");
+
+        const userData = await userRes.json();
+        setCurrentUser(userData);
+
+        // Fetch tutor info
         const tutorRes = await fetch(`http://localhost:8000/tutors/${tutorId}`, {
           credentials: "include",
         });
@@ -47,9 +69,21 @@ function BookSessionContent() {
         const tutorData = await tutorRes.json();
         setTutor(tutorData);
 
-        // Set today as default date
-        const today = new Date().toISOString().split('T')[0];
-        setRequestDate(today);
+        // Fetch available slots
+        const slotsRes = await fetch(`http://localhost:8000/availability/${tutorId}`, {
+          credentials: "include",
+        });
+
+        if (!slotsRes.ok) throw new Error("Failed to load availability");
+
+        const slotsData: AvailabilitySlot[] = await slotsRes.json();
+        
+        // Filter only unbooked slots and sort by start time
+        const unbooked = slotsData
+          .filter(slot => !slot.is_booked)
+          .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+        
+        setAvailableSlots(unbooked);
 
         // Auto-select tutor's first subject
         if (tutorData.subjects && tutorData.subjects.length > 0) {
@@ -60,7 +94,7 @@ function BookSessionContent() {
         await Swal.fire({
           icon: "error",
           title: "Error",
-          text: "Failed to load tutor information. Please try again.",
+          text: "Failed to load information. Please try again.",
         });
         router.push("/student/find-tutor");
       } finally {
@@ -70,6 +104,55 @@ function BookSessionContent() {
 
     loadData();
   }, [tutorId, router]);
+
+  // Handle slot selection
+  const handleSlotSelect = (slotId: string) => {
+    const slot = availableSlots.find(s => s.id === slotId);
+    if (!slot) return;
+
+    setSelectedSlot(slot);
+
+    // Calculate slot duration in minutes
+    const slotStart = new Date(slot.start_time + 'Z');
+    const slotEnd = new Date(slot.end_time + 'Z');
+    const durationMinutes = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60);
+
+    // Set slider to full slot range initially
+    setSliderRange([0, durationMinutes]);
+
+    // Update mode to match slot's allowed modes
+    if (slot.allowed_modes && slot.allowed_modes.length > 0) {
+      setMode(slot.allowed_modes[0]);
+    }
+  };
+
+  // Handle slider change with minimum duration enforcement
+  const handleSliderChange = (value: number | number[]) => {
+    if (!Array.isArray(value) || value.length !== 2) return;
+
+    const [start, end] = value;
+    const duration = end - start;
+
+    // Enforce minimum duration
+    if (duration < MINIMUM_DURATION_MINUTES) {
+      return; // Reject the change
+    }
+
+    setSliderRange([start, end]);
+  };
+
+  // Calculate actual start/end times from slider
+  const getActualTimes = (): { start: Date; end: Date } | null => {
+    if (!selectedSlot) return null;
+
+    const slotStart = new Date(selectedSlot.start_time + 'Z');
+    const [startOffset, endOffset] = sliderRange;
+
+    const actualStart = new Date(slotStart.getTime() + startOffset * 60 * 1000);
+    const actualEnd = new Date(slotStart.getTime() + endOffset * 60 * 1000);
+
+    return { start: actualStart, end: actualEnd };
+  };
 
   const handleBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -88,14 +171,14 @@ function BookSessionContent() {
       return;
     }
 
-    if (!requestDate || !startTime || !endTime) {
-      await Swal.fire("Error", "Please fill in date and time", "error");
+    if (!selectedSlot) {
+      await Swal.fire("Error", "Please select an available time slot", "error");
       return;
     }
 
-    // Validate time range
-    if (startTime >= endTime) {
-      await Swal.fire("Error", "End time must be after start time", "error");
+    const actualTimes = getActualTimes();
+    if (!actualTimes) {
+      await Swal.fire("Error", "Invalid time selection", "error");
       return;
     }
 
@@ -105,16 +188,12 @@ function BookSessionContent() {
       return;
     }
 
-    // Build ISO datetime strings
-    const start_time = `${requestDate}T${startTime}:00`;
-    const end_time = `${requestDate}T${endTime}:00`;
-
-    // Build booking request (no location - tutor will provide)
+    // Build booking request
     const bookingRequest: BookingRequest = {
       tutor_id: tutorId!,
       course_code: courseCode,
-      start_time,
-      end_time,
+      start_time: actualTimes.start.toISOString(),
+      end_time: actualTimes.end.toISOString(),
       mode,
       session_request_type: sessionType,
     };
@@ -157,7 +236,7 @@ function BookSessionContent() {
       await Swal.fire({
         icon: "error",
         title: "Booking Failed",
-        text: error.message || "Could not submit booking request. Please check if your requested time falls within tutor's availability.",
+        text: error.message || "Could not submit booking request.",
       });
     }
   };
@@ -253,7 +332,7 @@ function BookSessionContent() {
               </label>
               <input
                 readOnly
-                value="Nguyen M. Q. Khanh · 2352525"
+                value={currentUser ? `${currentUser.display_name || currentUser.full_name || 'N/A'} · ${currentUser.student_id || 'N/A'}` : 'Loading...'}
                 className="w-full rounded-md border border-black/5 bg-soft-white-blue/60 px-3 py-2 text-sm text-black/80 outline-none focus:ring-2 focus:ring-light-light-blue/70"
               />
               <p className="text-[11px] text-black/45 mt-1">
@@ -284,51 +363,105 @@ function BookSessionContent() {
               </p>
             </div>
 
-            {/* DATE AND TIME */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-dark-blue block mb-1">
-                  Date *
-                </label>
-                <input
-                  type="date"
-                  value={requestDate}
-                  onChange={(e) => setRequestDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-dark-blue block mb-1">
-                  Start Time *
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-dark-blue block mb-1">
-                  End Time *
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
-                  required
-                />
-              </div>
+            {/* SLOT SELECTION */}
+            <div>
+              <label className="text-xs font-semibold text-dark-blue block mb-1">
+                Available Time Slot *
+              </label>
+              <select
+                value={selectedSlot?.id || ""}
+                onChange={(e) => handleSlotSelect(e.target.value)}
+                className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
+                required
+              >
+                <option value="">Select an available time slot</option>
+                {availableSlots.map((slot) => (
+                  <option key={slot.id} value={slot.id}>
+                    {formatTimeRange(slot.start_time, slot.end_time)} 
+                    {slot.allowed_modes && slot.allowed_modes.length > 0 && 
+                      ` (${slot.allowed_modes.map(m => LocationModeLabels[m]).join(', ')})`
+                    }
+                  </option>
+                ))}
+              </select>
+              {availableSlots.length === 0 && (
+                <p className="text-[11px] text-red-500 mt-1">
+                  No available slots. This tutor may not have set their availability yet.
+                </p>
+              )}
+              {availableSlots.length > 0 && (
+                <p className="text-[11px] text-black/45 mt-1">
+                  Select from tutor&apos;s available time slots
+                </p>
+              )}
             </div>
-            <p className="text-[11px] text-black/45 -mt-2">
-              Backend will check if this time matches tutor availability
-            </p>
+
+            {/* TIME RANGE SLIDER */}
+            {selectedSlot && (() => {
+              const slotStart = new Date(selectedSlot.start_time + 'Z');
+              const slotEnd = new Date(selectedSlot.end_time + 'Z');
+              const maxMinutes = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60);
+              const actualTimes = getActualTimes();
+
+              return (
+                <div className="bg-soft-white-blue/40 rounded-lg p-4 border border-soft-white-blue">
+                  <label className="text-xs font-semibold text-dark-blue block mb-3">
+                    Fine-tune Your Time Range *
+                  </label>
+                  
+                  {/* Time Display */}
+                  <div className="flex items-center justify-between mb-4 text-sm">
+                    <div className="text-center">
+                      <p className="text-[10px] text-black/50 mb-1">START</p>
+                      <p className="font-semibold text-dark-blue">
+                        {actualTimes ? formatTime(actualTimes.start.toISOString()) : '--:--'}
+                      </p>
+                    </div>
+                    <div className="text-center px-4">
+                      <p className="text-[10px] text-black/50 mb-1">DURATION</p>
+                      <p className="font-semibold text-light-heavy-blue">
+                        {sliderRange[1] - sliderRange[0]} min
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] text-black/50 mb-1">END</p>
+                      <p className="font-semibold text-dark-blue">
+                        {actualTimes ? formatTime(actualTimes.end.toISOString()) : '--:--'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Slider */}
+                  <div className="px-2 py-6">
+                    <Slider
+                      range
+                      min={0}
+                      max={maxMinutes}
+                      step={SLIDER_STEP_MINUTES}
+                      value={sliderRange}
+                      onChange={handleSliderChange}
+                      allowCross={false}
+                      styles={{
+                        track: {
+                          backgroundColor: '#4A90E2',
+                        },
+                        handle: {
+                          borderColor: '#4A90E2',
+                          backgroundColor: '#fff',
+                        },
+                        rail: {
+                          backgroundColor: '#e0e7ff',
+                        },
+                      }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-black/45 mt-2">
+                    Minimum duration: {MINIMUM_DURATION_MINUTES} minutes • Step: {SLIDER_STEP_MINUTES} minutes
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* LOCATION MODE */}
             <div>
@@ -340,13 +473,26 @@ function BookSessionContent() {
                 onChange={(e) => setMode(e.target.value as LocationMode)}
                 className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
                 required
+                disabled={!selectedSlot}
               >
-                <option value={LocationMode.ONLINE}>{LocationModeLabels[LocationMode.ONLINE]}</option>
-                <option value={LocationMode.CAMPUS_1}>{LocationModeLabels[LocationMode.CAMPUS_1]}</option>
-                <option value={LocationMode.CAMPUS_2}>{LocationModeLabels[LocationMode.CAMPUS_2]}</option>
+                {selectedSlot && selectedSlot.allowed_modes && selectedSlot.allowed_modes.length > 0 ? (
+                  selectedSlot.allowed_modes.map((allowedMode) => (
+                    <option key={allowedMode} value={allowedMode}>
+                      {LocationModeLabels[allowedMode]}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value={LocationMode.ONLINE}>{LocationModeLabels[LocationMode.ONLINE]}</option>
+                    <option value={LocationMode.CAMPUS_1}>{LocationModeLabels[LocationMode.CAMPUS_1]}</option>
+                    <option value={LocationMode.CAMPUS_2}>{LocationModeLabels[LocationMode.CAMPUS_2]}</option>
+                  </>
+                )}
               </select>
               <p className="text-[11px] text-black/45 mt-1">
-                Meeting link/room will be provided by tutor after confirmation
+                {selectedSlot && selectedSlot.allowed_modes && selectedSlot.allowed_modes.length > 0 
+                  ? "Only modes allowed by the selected time slot" 
+                  : "Meeting link/room will be provided by tutor after confirmation"}
               </p>
             </div>
 
@@ -391,12 +537,18 @@ function BookSessionContent() {
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="10"
+                  min="2"
                   value={maxCapacity}
-                  onChange={(e) => setMaxCapacity(parseInt(e.target.value) || 1)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 2;
+                    setMaxCapacity(Math.max(val, 2));
+                  }}
                   className="w-full rounded-md border border-black/5 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-light-light-blue/70"
+                  required
                 />
+                <p className="text-[11px] text-black/45 mt-1">
+                  Number of students who can join this public group session (minimum 2)
+                </p>
               </div>
             )}
 
@@ -466,13 +618,16 @@ function BookSessionContent() {
             <div>
               <p className="text-[11px] font-semibold text-dark-blue">Requested Time</p>
               <p className="text-sm text-black/80">
-                {requestDate && startTime && endTime ? (
+                {selectedSlot && getActualTimes() ? (
                   <>
-                    {new Date(requestDate).toLocaleDateString()}<br />
-                    {startTime} - {endTime}
+                    {formatDate(selectedSlot.start_time)}<br />
+                    {formatTime(getActualTimes()!.start.toISOString())} - {formatTime(getActualTimes()!.end.toISOString())}
+                    <span className="text-xs text-black/50 block mt-1">
+                      ({sliderRange[1] - sliderRange[0]} minutes)
+                    </span>
                   </>
                 ) : (
-                  <span className="text-black/30">Not specified</span>
+                  <span className="text-black/30">Not selected</span>
                 )}
               </p>
             </div>
@@ -504,10 +659,11 @@ function BookSessionContent() {
               How it works
             </p>
             <ul className="text-[11px] text-black/55 space-y-1 list-disc list-inside">
-              <li>You enter preferred date/time</li>
-              <li>Backend checks if it matches tutor availability</li>
-              <li>Tutor reviews and confirms/rejects your request</li>
-              <li>Meeting location will be provided by tutor after confirmation</li>
+              <li>Select from tutor&apos;s available time slots</li>
+              <li>Use the slider to fine-tune your preferred time within the slot</li>
+              <li>Minimum {MINIMUM_DURATION_MINUTES} minutes session duration required</li>
+              <li>Tutor will review and confirm/reject/negotiate your request</li>
+              <li>Meeting location will be provided after confirmation</li>
             </ul>
           </div>
         </aside>

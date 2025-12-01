@@ -6,6 +6,7 @@ from beanie import PydanticObjectId, Link
 # Models
 from app.models.internal.user import User
 from app.models.internal.student_profile import StudentProfile
+from app.models.internal.session import TutorSession, SessionStatus
 from app.models.enums.university_identities import UniversityIdentity
 
 # Schemas
@@ -122,3 +123,72 @@ class StudentService:
             await profile.save()
 
         return await StudentService._map_to_response(profile)
+
+    @staticmethod
+    async def recalculate_student_stats(student_id: Optional[str] = None) -> int:
+        """
+        Recalculates learning statistics for student(s) based on completed sessions.
+        
+        Similar to tutor stats recalculation, this method:
+        - Counts COMPLETED sessions where student participated
+        - Calculates total learning hours from session durations
+        - Counts unique tutors the student has worked with
+        - Calculates attendance rate (currently defaults to 100% - can be enhanced)
+        
+        Args:
+            student_id: Optional specific student profile ID. If None, recalculates for all students.
+            
+        Returns:
+            Number of student profiles updated
+        """
+        # Get student profiles to update
+        if student_id:
+            student = await StudentProfile.get(student_id)
+            if not student:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Student profile not found")
+            students = [student]
+        else:
+            students = await StudentProfile.find_all().to_list()
+        
+        updated_count = 0
+        
+        for student in students:
+            # Get all COMPLETED sessions for this student
+            completed_sessions = await TutorSession.find(
+                TutorSession.students.id == student.id,
+                TutorSession.status == SessionStatus.COMPLETED
+            ).to_list()
+            
+            # Calculate stats
+            total_sessions = len(completed_sessions)
+            
+            # Calculate total learning hours
+            total_hours = 0.0
+            for session in completed_sessions:
+                duration = (session.end_time - session.start_time).total_seconds() / 3600
+                total_hours += duration
+            
+            # Count unique tutors
+            unique_tutor_ids = set()
+            for session in completed_sessions:
+                await session.fetch_link(TutorSession.tutor)
+                unique_tutor_ids.add(str(session.tutor.id))
+            total_tutors = len(unique_tutor_ids)
+            
+            # Attendance rate - currently set to 100%
+            # TODO: Calculate based on actual attendance records when implemented
+            attendance_rate = 100
+            
+            # Update student stats
+            student.stats.total_sessions = total_sessions
+            student.stats.total_learning_hours = round(total_hours, 2)
+            student.stats.total_tutors_met = total_tutors
+            student.stats.attendance_rate = attendance_rate
+            student.updated_at = datetime.now()
+            
+            await student.save()
+            updated_count += 1
+            
+            print(f"Updated stats for student {student.id}: {total_sessions} sessions, {total_hours:.2f}h, {total_tutors} tutors, {attendance_rate}% attendance")
+        
+        return updated_count

@@ -126,7 +126,49 @@ async def seed_user_data():
     await StudentProfile(user=user_lan).save()
     print("   + Created: lan.tran (Mentee)")
     
-    print("   ✅ User Data Ready.")
+    # --- CREATE ADDITIONAL 20 STUDENTS FOR MORE DATA ---
+    student_names = [
+        ("Nguyen Van An", "an.nguyen", "2110003", Gender.MALE),
+        ("Tran Thi Binh", "binh.tran", "2110004", Gender.FEMALE),
+        ("Le Van Cuong", "cuong.le", "2110005", Gender.MALE),
+        ("Pham Thi Dung", "dung.pham", "2110006", Gender.FEMALE),
+        ("Hoang Van Em", "em.hoang", "2110007", Gender.MALE),
+        ("Vo Thi Phuong", "phuong.vo", "2110008", Gender.FEMALE),
+        ("Do Van Gia", "gia.do", "2110009", Gender.MALE),
+        ("Bui Thi Hoa", "hoa.bui", "2110010", Gender.FEMALE),
+        ("Dinh Van Kha", "kha.dinh", "2110011", Gender.MALE),
+        ("Ngo Thi Linh", "linh.ngo", "2110012", Gender.FEMALE),
+        ("Truong Van Minh", "minh.truong", "2110013", Gender.MALE),
+        ("Ly Thi Nga", "nga.ly", "2110014", Gender.FEMALE),
+        ("Duong Van Phong", "phong.duong", "2110015", Gender.MALE),
+        ("Trinh Thi Quynh", "quynh.trinh", "2110016", Gender.FEMALE),
+        ("Mai Van Son", "son.mai", "2110017", Gender.MALE),
+        ("Ha Thi Thao", "thao.ha", "2110018", Gender.FEMALE),
+        ("Vu Van Tuan", "tuan.vu", "2110019", Gender.MALE),
+        ("Dang Thi Uyen", "uyen.dang", "2110020", Gender.FEMALE),
+        ("Cao Van Vinh", "vinh.cao", "2110021", Gender.MALE),
+        ("Phan Thi Xuan", "xuan.phan", "2110022", Gender.FEMALE),
+    ]
+    
+    for full_name, username, student_id, gender in student_names:
+        sso = HCMUT_SSO(
+            username=username, password_hash=hashed_pwd, identity_id=student_id,
+            identity_type=UniversityIdentity.STUDENT, full_name=full_name, gender=gender,
+            contact=ContactInfo(email_edu=f"{username}@hcmut.edu.vn"),
+            academic=AcademicStatus(major_link=cs_major, major=cs_major.name, class_code="CS21", 
+                                   current_year=2, student_status=StudentStatus.STUDYING)
+        )
+        await sso.save()
+        
+        user = User(
+            sso_info=sso, full_name=full_name, email_edu=f"{username}@hcmut.edu.vn",
+            roles=[UserRole.STUDENT]
+        )
+        await user.save()
+        await StudentProfile(user=user).save()
+        print(f"   + Created: {username} (Student)")
+    
+    print(f"   ✅ User Data Ready. Total: 24 users (1 admin, 2 tutors, 21 students)")
 
 if __name__ == "__main__":
     asyncio.run(seed_user_data())

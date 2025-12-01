@@ -16,12 +16,21 @@ async def get_me_short(current_user: User = Depends(get_current_user)):
     Retrieves the minimal user information (snapshots) required for the Navbar and Authentication Context.
     This API is designed to be fast, requiring only a single query to the internal User table.
     """
+    # Fetch SSO info to get student_id (identity_id)
+    student_id = None
+    if isinstance(current_user.sso_info, Link):
+        await current_user.fetch_link(User.sso_info)
+    
+    if current_user.sso_info:
+        student_id = current_user.sso_info.identity_id
+    
     return UserShortResponse(
         user_id=str(current_user.id),
         full_name=current_user.full_name, 
         avatar_url=current_user.avatar_url,
         roles=current_user.roles,
-        is_active=current_user.is_active
+        is_active=current_user.is_active,
+        student_id=student_id
     )
 
 @router.get("/me/profile", response_model=UserDetailResponse)
@@ -61,6 +70,7 @@ async def get_me_full(current_user: User = Depends(get_current_user)):
         avatar_url=current_user.avatar_url,
         roles=current_user.roles,
         is_active=current_user.is_active,
+        student_id=sso.identity_id,  # Add student_id from SSO
         
         # Detail info (mostly from SSO)
         sso_id=sso.identity_id,
@@ -117,6 +127,7 @@ async def update_my_profile(
         avatar_url=current_user.avatar_url,
         roles=current_user.roles,
         is_active=current_user.is_active,
+        student_id=sso.identity_id,  # Add student_id from SSO
         sso_id=sso.identity_id,
         email_edu=current_user.email_edu,
         email_personal=current_user.email_personal,

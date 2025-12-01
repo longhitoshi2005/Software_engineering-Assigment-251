@@ -136,3 +136,28 @@ async def upload_tutor_avatar(
         )
     
     return await TutorService.upload_avatar(current_user, file)
+
+
+# ==========================================
+# 4. ADMIN UTILITIES
+# ==========================================
+
+@router.post("/stats/recalculate", response_model=dict)
+async def recalculate_all_tutor_stats(
+    current_user: User = Depends(RoleChecker([UserRole.ADMIN, UserRole.DEPT_CHAIR]))
+):
+    """
+    [Admin/Dept Chair Only] Recalculates statistics for all tutors based on actual session and feedback data.
+    
+    This endpoint should be called:
+    - After bulk data imports or database migrations
+    - When tutor stats appear incorrect or out of sync
+    - As a maintenance/cleanup task
+    
+    The recalculation includes:
+    - Total completed sessions
+    - Total unique students taught
+    - Total submitted feedbacks
+    - Average rating from submitted feedbacks
+    """
+    return await TutorService.recalculate_tutor_stats()

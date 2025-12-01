@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Swal from "sweetalert2";
 import { TutorSearchResult, TutorSearchRequest } from "@/types/tutorSearch";
 import { LocationMode, LocationModeLabels } from "@/types/location";
+import { formatTimeRange } from "@/lib/dateUtils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -159,25 +160,7 @@ export default function FindTutorPage() {
 
   const formatAvailability = (availability: TutorSearchResult["closest_availability"]) => {
     if (!availability) return "No upcoming availability";
-    
-    const start = new Date(availability.start_time);
-    const end = new Date(availability.end_time);
-    
-    const dateStr = start.toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-    });
-    
-    const timeStr = `${start.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })} - ${end.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
-    
-    return `${dateStr}, ${timeStr}`;
+    return formatTimeRange(availability.start_time, availability.end_time);
   };
 
   return (

@@ -14,7 +14,7 @@ COPY ./.env /code/.env
 COPY ./scripts /code/scripts
 
 # Copy startup script
-COPY ./docker-entrypoint.sh /code/docker-entrypoint.sh
+COPY docker-entrypoint.sh /code/docker-entrypoint.sh
 RUN chmod +x /code/docker-entrypoint.sh
 
 # Lệnh chạy server (Hot reload enabled)

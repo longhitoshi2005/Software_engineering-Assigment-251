@@ -1,12 +1,20 @@
 from contextlib import asynccontextmanager
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.mongodb import init_db
 from app.routes import auth, users, academic, tutors, students, availability, sessions, feedback, attendance, reports, notifications, library
+from app.core.tasks import auto_skip_expired_feedbacks_task, auto_complete_past_sessions_task
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    
+    # Start background tasks
+    asyncio.create_task(auto_skip_expired_feedbacks_task())
+    asyncio.create_task(auto_complete_past_sessions_task())
+    print("Background tasks started")
+    
     yield
     print("Shutting down...")
 

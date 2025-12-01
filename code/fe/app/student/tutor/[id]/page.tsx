@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import Swal from "sweetalert2";
 import BackButton from "@/components/BackButton";
 import { LocationModeLabels } from "@/types/location";
+import { formatDateTime, formatTime } from "@/lib/dateUtils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -115,17 +116,7 @@ export default function TutorProfilePage() {
     }
   }, [id]);
 
-  const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleString("en-GB", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // Using imported formatDateTime and formatTime from dateUtils
 
   if (loading) {
     return (
@@ -262,10 +253,7 @@ export default function TutorProfilePage() {
                     {formatDateTime(slot.start_time)}
                   </p>
                   <p className="text-xs text-black/60">
-                    to {new Date(slot.end_time).toLocaleTimeString("en-GB", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    to {formatTime(slot.end_time)}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {slot.allowed_modes.map((mode) => (

@@ -9,16 +9,6 @@ import { Role, setClientRole } from "@/lib/role";
 import api from "@/lib/api";
 import { LoginRequest, LoginResponse } from "@/types/auth";
 
-// Test accounts mapping for role assignment (frontend only for demo)
-// In production, roles would come from the backend
-// USERNAME ONLY - email_edu is always derived as username@hcmut.edu.vn
-const ROLE_MAPPING: Record<string, { role: Role; redirect: string }> = {
-  "lan.tran": { role: Role.STUDENT, redirect: "/student/dashboard" },
-  "student_gioi": { role: Role.STUDENT, redirect: "/student/dashboard" },
-  "tuan.pham": { role: Role.TUTOR, redirect: "/tutor/dashboard" },
-  "head.cse": { role: Role.DEPARTMENT_CHAIR, redirect: "/dept" },
-};
-
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,28 +45,56 @@ export default function LoginPage() {
 
       const response: LoginResponse = await api.post("/auth/login", loginData);
 
-      // Get role mapping for this user (in production, roles would come from backend)
-      const roleInfo = ROLE_MAPPING[username];
+      // Get user info from backend to determine role
+      const userInfo = await api.get("/users/me");
 
-      if (!roleInfo) {
+      if (!userInfo.roles || userInfo.roles.length === 0) {
         setError("Account role not configured");
         setLoading(false);
         return;
       }
 
       // Store user info in localStorage
-      // email_edu is ALWAYS derived from username
       localStorage.setItem("userEmail", `${username}@hcmut.edu.vn`);
       localStorage.setItem("username", username);
+      
+      // Determine primary role and redirect path
+      let primaryRole: Role;
+      let redirectPath: string;
+
+      if (userInfo.roles.includes("TUTOR")) {
+        primaryRole = Role.TUTOR;
+        redirectPath = "/tutor/dashboard";
+      } else if (userInfo.roles.includes("STUDENT")) {
+        primaryRole = Role.STUDENT;
+        redirectPath = "/student/dashboard";
+      } else if (userInfo.roles.includes("DEPARTMENT_CHAIR")) {
+        primaryRole = Role.DEPARTMENT_CHAIR;
+        redirectPath = "/dept";
+      } else if (userInfo.roles.includes("COORDINATOR")) {
+        primaryRole = Role.COORDINATOR;
+        redirectPath = "/coord";
+      } else if (userInfo.roles.includes("STUDENT_AFFAIRS")) {
+        primaryRole = Role.STUDENT_AFFAIRS;
+        redirectPath = "/sa";
+      } else if (userInfo.roles.includes("PROGRAM_ADMIN")) {
+        primaryRole = Role.PROGRAM_ADMIN;
+        redirectPath = "/admin";
+      } else {
+        setError("Account role not supported");
+        setLoading(false);
+        return;
+      }
+
       try {
-        localStorage.setItem('userRole', roleInfo.role);
-        setClientRole(roleInfo.role);
+        localStorage.setItem('userRole', primaryRole);
+        setClientRole(primaryRole);
       } catch (e) {
         // ignore write errors in strict environments
       }
 
       // Redirect based on assigned role
-      router.push(roleInfo.redirect);
+      router.push(redirectPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.");
       setLoading(false);

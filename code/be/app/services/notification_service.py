@@ -175,3 +175,27 @@ class NotificationService:
             is_read=notification.is_read,
             created_at=notification.created_at
         )
+
+    @staticmethod
+    async def mark_all_as_read(user: User) -> int:
+        """
+        Marks all unread notifications for a user as read.
+        
+        Args:
+            user: The authenticated user
+            
+        Returns:
+            Number of notifications marked as read
+        """
+        notifications = await Notification.find(
+            Notification.receiver.id == user.id,
+            Notification.is_read == False
+        ).to_list()
+        
+        count = 0
+        for notification in notifications:
+            notification.is_read = True
+            await notification.save()
+            count += 1
+        
+        return count
