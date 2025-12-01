@@ -33,6 +33,22 @@ interface AvailabilitySlot {
   is_booked: boolean;
 }
 
+interface PublicSession {
+  id: string;
+  tutor_id: string;
+  tutor_name: string;
+  course_code: string;
+  course_name: string;
+  topic: string;
+  start_time: string;
+  end_time: string;
+  mode: string;
+  location: string | null;
+  max_capacity: number;
+  available_slots: number;
+  is_joined?: boolean;
+}
+
 interface TutorProfile {
   id: string;
   user_id: string;
@@ -64,6 +80,7 @@ export default function TutorProfilePage() {
   
   const [tutor, setTutor] = useState<TutorProfile | null>(null);
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
+  const [publicSessions, setPublicSessions] = useState<PublicSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +115,21 @@ export default function TutorProfilePage() {
         } catch (err) {
           console.log("No availability data:", err);
         }
+
+        // Fetch public sessions for this tutor
+        try {
+          const sessionsResponse = await fetch(
+            `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(profileData.full_name)}&limit=10`,
+            { credentials: "include" }
+          );
+
+          if (sessionsResponse.ok) {
+            const sessionsData: PublicSession[] = await sessionsResponse.json();
+            setPublicSessions(sessionsData);
+          }
+        } catch (err) {
+          console.log("No public sessions:", err);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load tutor profile";
         setError(message);
@@ -115,6 +147,96 @@ export default function TutorProfilePage() {
       fetchTutorProfile();
     }
   }, [id]);
+
+  const handleJoinSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/join`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to join session");
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "You have successfully joined the session",
+      });
+
+      // Refresh public sessions
+      if (tutor) {
+        const sessionsResponse = await fetch(
+          `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
+          { credentials: "include" }
+        );
+        if (sessionsResponse.ok) {
+          const sessionsData: PublicSession[] = await sessionsResponse.json();
+          setPublicSessions(sessionsData);
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to join session";
+      await Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: message,
+      });
+    }
+  };
+
+  const handleLeaveSession = async (sessionId: string) => {
+    try {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Leave Session?",
+        text: "Are you sure you want to leave this session?",
+        showCancelButton: true,
+        confirmButtonText: "Yes, leave",
+        cancelButtonText: "Cancel",
+      });
+
+      if (!result.isConfirmed) return;
+
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/leave`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to leave session");
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Left Session",
+        text: "You have successfully left the session.",
+      });
+
+      // Refresh public sessions
+      if (tutor) {
+        const sessionsResponse = await fetch(
+          `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
+          { credentials: "include" }
+        );
+        if (sessionsResponse.ok) {
+          const sessionsData: PublicSession[] = await sessionsResponse.json();
+          setPublicSessions(sessionsData);
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to leave session";
+      await Swal.fire({
+        icon: "error",
+        title: "Leave Failed",
+        text: message,
+      });
+    }
+  };
 
   // Using imported formatDateTime and formatTime from dateUtils
 
@@ -337,6 +459,67 @@ export default function TutorProfilePage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Public Sessions Section */}
+          <div className="pt-4 border-t border-soft-white-blue">
+            <h4 className="text-sm font-semibold text-dark-blue mb-3">Available Public Sessions</h4>
+            {publicSessions.length > 0 ? (
+              <div className="space-y-3">
+                {publicSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="border border-soft-white-blue rounded-lg p-3 bg-white hover:shadow-sm transition"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-dark-blue mb-1">{session.topic}</p>
+                        <p className="text-xs text-black/60">{session.course_code} - {session.course_name}</p>
+                      </div>
+                      <span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-1 rounded-md whitespace-nowrap ml-2">
+                        {session.available_slots}/{session.max_capacity}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 mb-2">
+                      <div className="flex items-center gap-2 text-xs text-black/70">
+                        <svg className="w-3.5 h-3.5 text-black/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>{formatDateTime(session.start_time)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-black/70">
+                        <svg className="w-3.5 h-3.5 text-black/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>to {formatTime(session.end_time)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="inline-flex items-center gap-1 bg-light-light-blue/10 text-light-heavy-blue rounded-md px-2 py-0.5 text-[0.65rem] font-medium">
+                          {LocationModeLabels[session.mode as keyof typeof LocationModeLabels] || session.mode}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => session.is_joined ? handleLeaveSession(session.id) : handleJoinSession(session.id)}
+                      disabled={!session.is_joined && session.available_slots === 0}
+                      className={`w-full text-xs font-semibold rounded-lg px-3 py-2 transition ${
+                        session.is_joined
+                          ? "bg-gray-400 text-white hover:bg-gray-500 cursor-pointer"
+                          : session.available_slots === 0
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-green-600 text-white hover:bg-green-700"
+                      }`}
+                    >
+                      {session.is_joined ? "Leave Session" : session.available_slots === 0 ? "Full" : "Join Session"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-black/60">No public sessions available at the moment.</p>
+            )}
           </div>
         </aside>
       </div>

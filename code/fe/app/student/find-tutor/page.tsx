@@ -10,12 +10,30 @@ import { formatTimeRange } from "@/lib/dateUtils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+interface PublicSession {
+  id: string;
+  tutor_id: string;
+  tutor_name: string;
+  course_code: string;
+  course_name: string;
+  topic: string;
+  start_time: string;
+  end_time: string;
+  mode: string;
+  location: string | null;
+  max_capacity: number;
+  available_slots: number;
+  is_joined?: boolean;
+}
+
 export default function FindTutorPage() {
   const router = useRouter();
 
   // State
   const [tutors, setTutors] = useState<TutorSearchResult[]>([]);
+  const [publicSessions, setPublicSessions] = useState<PublicSession[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // FILTER STATE
@@ -137,9 +155,41 @@ export default function FindTutorPage() {
     }
   };
 
-  // Load tutors on mount
+  // Fetch public sessions from API
+  const searchPublicSessions = async () => {
+    setLoadingSessions(true);
+
+    try {
+      const params = new URLSearchParams();
+      if (subjectFilter) params.append("course_code", subjectFilter.split(" ")[0]); // Extract course code
+      if (departmentFilter) params.append("tutor_name", departmentFilter);
+      params.append("limit", "20");
+
+      const response = await fetch(`${API_BASE_URL}/sessions/public?${params.toString()}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch public sessions: ${response.statusText}`);
+      }
+
+      const data: PublicSession[] = await response.json();
+      setPublicSessions(data);
+    } catch (err) {
+      console.error("Failed to load public sessions:", err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  // Combined search
+  const handleSearch = async () => {
+    await Promise.all([searchTutors(), searchPublicSessions()]);
+  };
+
+  // Load on mount
   useEffect(() => {
-    searchTutors();
+    handleSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -149,6 +199,77 @@ export default function FindTutorPage() {
 
   const handleViewProfile = (tutor: TutorSearchResult) => {
     router.push(`/student/tutor/${tutor.id}`);
+  };
+
+  const handleJoinSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/join`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to join session");
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Joined!",
+        text: "You have successfully joined the public session.",
+      });
+
+      // Refresh sessions
+      searchPublicSessions();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to join session";
+      Swal.fire({
+        icon: "error",
+        title: "Join Failed",
+        text: message,
+      });
+    }
+  };
+
+  const handleLeaveSession = async (sessionId: string) => {
+    try {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Leave Session?",
+        text: "Are you sure you want to leave this session?",
+        showCancelButton: true,
+        confirmButtonText: "Yes, leave",
+        cancelButtonText: "Cancel",
+      });
+
+      if (!result.isConfirmed) return;
+
+      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/leave`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Failed to leave session");
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Left Session",
+        text: "You have successfully left the session.",
+      });
+
+      // Refresh sessions
+      searchPublicSessions();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to leave session";
+      Swal.fire({
+        icon: "error",
+        title: "Leave Failed",
+        text: message,
+      });
+    }
   };
 
   const handleReset = () => {
@@ -273,11 +394,11 @@ export default function FindTutorPage() {
         
         <div className="flex justify-end gap-2">
           <button
-            onClick={searchTutors}
-            disabled={loading}
+            onClick={handleSearch}
+            disabled={loading || loadingSessions}
             className="bg-light-heavy-blue text-white text-sm font-semibold rounded-lg px-4 py-2 hover:bg-[#00539a] transition disabled:opacity-50"
           >
-            {loading ? "Searching..." : "Search"}
+            {(loading || loadingSessions) ? "Searching..." : "Search"}
           </button>
           <button
             onClick={handleReset}
@@ -295,140 +416,159 @@ export default function FindTutorPage() {
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-8">
-          <p className="text-sm text-black/60">Loading tutors...</p>
-        </div>
-      )}
+      {/* Section 2: Tutors - Horizontal Scroll */}
+      <section>
+        <h2 className="text-base font-semibold text-dark-blue mb-3">Available Tutors</h2>
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-black/60">Loading tutors...</p>
+          </div>
+        ) : tutors.length === 0 ? (
+          <p className="text-sm text-black/60">No tutors found matching your criteria.</p>
+        ) : (
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-4" style={{ minWidth: "max-content" }}>
+              {tutors.map((tutor) => (
+                <article
+                  key={tutor.id}
+                  className="bg-white border border-soft-white-blue rounded-lg p-4 flex-shrink-0"
+                  style={{ width: "320px" }}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    {tutor.avatar_url ? (
+                      <Image
+                        src={tutor.avatar_url}
+                        alt={`${tutor.display_name} avatar`}
+                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        width={48}
+                        height={48}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-light-heavy-blue text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                        {tutor.display_name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-dark-blue truncate">{tutor.display_name}</h3>
+                      <p className="text-xs text-black/60 truncate">
+                        {tutor.is_lecturer ? "Lecturer" : "Student Tutor"}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="bg-light-light-blue/10 text-light-heavy-blue text-[0.65rem] font-semibold px-2 py-0.5 rounded-md">
+                          {tutor.stats.average_rating.toFixed(1)} ⭐
+                        </span>
+                        <span className="text-[0.6rem] text-black/50">
+                          {tutor.stats.total_sessions} sessions
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-      {/* Tutor list */}
-      {!loading && (
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {tutors.length === 0 && !error && (
-            <p className="text-sm text-black/60 col-span-full">
-              No tutors found matching your criteria. Try adjusting your filters.
-            </p>
-          )}
-
-          {tutors.map((tutor) => (
-            <article
-              key={tutor.id}
-              className="bg-white border border-soft-white-blue rounded-lg p-5 flex flex-col gap-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  {tutor.avatar_url ? (
-                    <Image
-                      src={tutor.avatar_url}
-                      alt={`${tutor.display_name} avatar`}
-                      className="w-12 h-12 rounded-full object-cover"
-                      width={48}
-                      height={48}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-light-heavy-blue text-white flex items-center justify-center font-semibold text-sm">
-                      {tutor.display_name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+                  {/* Subjects */}
+                  {tutor.subjects.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-xs font-semibold text-dark-blue">Teaches:</span>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {tutor.subjects.slice(0, 2).map((subject, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center bg-soft-white-blue rounded-md px-2 py-1 text-[0.65rem] text-dark-blue"
+                          >
+                            {subject.course_code}
+                          </span>
+                        ))}
+                        {tutor.subjects.length > 2 && (
+                          <span className="text-[0.65rem] text-black/50">+{tutor.subjects.length - 2}</span>
+                        )}
+                      </div>
                     </div>
                   )}
-                  <div>
-                    <h2 className="text-base font-semibold text-dark-blue">{tutor.display_name}</h2>
-                    <p className="text-xs text-black/60">
-                      {tutor.is_lecturer ? "Lecturer" : "Student Tutor"}
-                      {tutor.academic_major && ` • ${tutor.academic_major}`}
-                    </p>
-                    {tutor.bio && (
-                      <p className="text-sm text-black/80 mt-1 line-clamp-2">{tutor.bio}</p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="flex flex-col gap-1 items-end">
-                  <span className="bg-light-light-blue/10 text-light-heavy-blue text-[0.65rem] font-semibold px-2 py-1 rounded-md whitespace-nowrap">
-                    {tutor.stats.average_rating.toFixed(1)} ⭐
+                  <div className="flex gap-2 pt-2 border-t border-soft-white-blue">
+                    <button
+                      onClick={() => handleBook(tutor)}
+                      className="flex-1 bg-light-heavy-blue text-white text-xs font-semibold rounded-lg px-3 py-2 hover:bg-[#00539a] transition"
+                    >
+                      Book
+                    </button>
+                    <button
+                      onClick={() => handleViewProfile(tutor)}
+                      className="flex-1 bg-white text-light-heavy-blue text-xs font-semibold rounded-lg px-3 py-2 border border-light-heavy-blue hover:bg-light-light-blue/10 transition"
+                    >
+                      View
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 3: Public Sessions - Grid */}
+      <section>
+        <h2 className="text-base font-semibold text-dark-blue mb-3">Public Sessions - Join Anytime</h2>
+        {loadingSessions ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-black/60">Loading sessions...</p>
+          </div>
+        ) : publicSessions.length === 0 ? (
+          <p className="text-sm text-black/60">No public sessions available at the moment.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {publicSessions.map((session) => (
+              <article
+                key={session.id}
+                className="bg-white border border-soft-white-blue rounded-lg p-4"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-dark-blue mb-1">{session.topic}</h3>
+                    <p className="text-xs text-black/60">{session.course_code} - {session.course_name}</p>
+                  </div>
+                  <span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-1 rounded-md whitespace-nowrap ml-2">
+                    {session.available_slots}/{session.max_capacity} slots
                   </span>
-                  <span className="text-[0.6rem] text-black/50">
-                    {tutor.stats.total_sessions} sessions
-                  </span>
                 </div>
-              </div>
 
-              {/* Subjects */}
-              {tutor.subjects.length > 0 && (
-                <div>
-                  <span className="text-xs font-semibold text-dark-blue">Teaches:</span>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {tutor.subjects.map((subject, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 bg-soft-white-blue border border-soft-white-blue rounded-md px-2 py-1 text-[0.7rem] text-dark-blue"
-                      >
-                        {subject.course_code} - {subject.course_name}
-                      </span>
-                    ))}
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center gap-2 text-xs text-black/70">
+                    <svg className="w-4 h-4 text-black/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="truncate">{session.tutor_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-black/70">
+                    <svg className="w-4 h-4 text-black/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>{formatTimeRange(session.start_time, session.end_time)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 bg-light-light-blue/10 text-light-heavy-blue rounded-md px-2 py-1 text-[0.65rem] font-medium">
+                      {LocationModeLabels[session.mode as LocationMode]}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {/* Tags */}
-              {tutor.tags.length > 0 && (
-                <div>
-                  <span className="text-xs font-semibold text-dark-blue">Expertise:</span>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {tutor.tags.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 bg-light-light-blue/10 text-light-heavy-blue rounded-md px-2 py-1 text-[0.65rem] font-medium"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Closest Availability */}
-              <div className="space-y-2">
-                <span className="text-xs font-semibold text-dark-blue">Next available:</span>
-                {tutor.closest_availability ? (
-                  <div className="space-y-1">
-                    <p className="text-sm text-black/80">
-                      {formatAvailability(tutor.closest_availability)}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {tutor.closest_availability.allowed_modes.map((mode) => (
-                        <span
-                          key={mode}
-                          className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-700 rounded-md px-2 py-1 text-[0.65rem] font-medium"
-                        >
-                          {LocationModeLabels[mode]}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-black/50 italic">No upcoming availability</p>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-2 border-t border-soft-white-blue">
                 <button
-                  onClick={() => handleBook(tutor)}
-                  className="flex-1 bg-light-heavy-blue text-white text-sm font-semibold rounded-lg px-3 py-2 hover:bg-[#00539a] transition"
+                  onClick={() => session.is_joined ? handleLeaveSession(session.id) : handleJoinSession(session.id)}
+                  disabled={!session.is_joined && session.available_slots === 0}
+                  className={`w-full text-sm font-semibold rounded-lg px-4 py-2 transition ${
+                    session.is_joined
+                      ? "bg-gray-400 text-white hover:bg-gray-500 cursor-pointer"
+                      : session.available_slots === 0
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
                 >
-                  Book session
+                  {session.is_joined ? "Leave Session" : session.available_slots === 0 ? "Full" : "Join Session"}
                 </button>
-                <button
-                  onClick={() => handleViewProfile(tutor)}
-                  className="flex-1 bg-white text-light-heavy-blue text-sm font-semibold rounded-lg px-3 py-2 border border-light-heavy-blue hover:bg-light-light-blue/10 transition"
-                >
-                  View profile
-                </button>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

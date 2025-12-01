@@ -263,7 +263,7 @@ export default function FeedbackModal({ sessionId, onClose, onSaved }: FeedbackM
             <button
               onClick={handleSave}
               disabled={saving || rating === 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-br from-blue-500 to-indigo-600 rounded-md hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="px-4 py-2 text-sm font-medium text-black/70 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {saving ? "Saving..." : "Save Feedback"}
             </button>

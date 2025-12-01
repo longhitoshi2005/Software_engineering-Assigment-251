@@ -13,7 +13,7 @@ from app.db.mongodb import init_db
 from app.models.internal.user import User
 from app.models.internal.tutor_profile import TutorProfile
 from app.models.internal.student_profile import StudentProfile
-from app.models.internal.session import TutorSession, SessionStatus, RequestType, NegotiationProposal
+from app.models.internal.session import TutorSession, SessionStatus, RequestType, NegotiationProposal, StudentParticipation, ParticipationStatus
 from app.models.external.course import Course
 from app.models.enums.location import LocationMode
 
@@ -98,6 +98,7 @@ async def seed_sessions():
         tutor=tutor_tuan,
         students=[student_lan],
         course=co3005,
+        topic="Software Architecture Patterns - MVC and MVVM",
         start_time=now - timedelta(days=7, hours=2),
         end_time=now - timedelta(days=7),
         mode=LocationMode.ONLINE,
@@ -106,7 +107,10 @@ async def seed_sessions():
         is_public=False,
         session_request_type=RequestType.ONE_ON_ONE,
         status=SessionStatus.COMPLETED,
-        note="Need help with Software Architecture patterns"
+        note="Need help with Software Architecture patterns",
+        student_participations=[
+            StudentParticipation(student=student_lan, status=ParticipationStatus.ATTENDED)
+        ]
     )
     await session1.save()
     sessions.append(session1)
@@ -115,6 +119,7 @@ async def seed_sessions():
         tutor=tutor_gioi,
         students=[student_lan],
         course=co3005,
+        topic="Data Structures - Binary Search Trees",
         start_time=now - timedelta(days=5, hours=2),
         end_time=now - timedelta(days=5),
         mode=LocationMode.CAMPUS_1,
@@ -123,7 +128,10 @@ async def seed_sessions():
         is_public=False,
         session_request_type=RequestType.ONE_ON_ONE,
         status=SessionStatus.COMPLETED,
-        note="Data Structures practice problems"
+        note="Data Structures practice problems",
+        student_participations=[
+            StudentParticipation(student=student_lan, status=ParticipationStatus.ATTENDED)
+        ]
     )
     await session2.save()
     sessions.append(session2)
@@ -132,6 +140,7 @@ async def seed_sessions():
         tutor=tutor_tuan,
         students=[student_lan, student_gioi],
         course=as1001,
+        topic="Midterm Exam Review - Key Concepts",
         start_time=now - timedelta(days=3, hours=2),
         end_time=now - timedelta(days=3),
         mode=LocationMode.ONLINE,
@@ -140,7 +149,11 @@ async def seed_sessions():
         is_public=True,
         session_request_type=RequestType.PUBLIC_GROUP,
         status=SessionStatus.COMPLETED,
-        note="Group study for midterm exam"
+        note="Group study for midterm exam",
+        student_participations=[
+            StudentParticipation(student=student_lan, status=ParticipationStatus.ATTENDED),
+            StudentParticipation(student=student_gioi, status=ParticipationStatus.ABSENT)  # Gioi was absent
+        ]
     )
     await session3.save()
     sessions.append(session3)
@@ -150,6 +163,7 @@ async def seed_sessions():
         tutor=tutor_tuan,
         students=[student_lan],
         course=co3005,
+        topic="Design Patterns - Factory and Singleton",
         start_time=now + timedelta(days=4, hours=10),
         end_time=now + timedelta(days=4, hours=12),
         mode=LocationMode.CAMPUS_1,
@@ -167,6 +181,7 @@ async def seed_sessions():
         tutor=tutor_gioi,
         students=[student_lan],
         course=co2003,
+        topic="Advanced Tree Traversal Algorithms",
         start_time=now + timedelta(days=6, hours=14),
         end_time=now + timedelta(days=6, hours=16),
         mode=LocationMode.ONLINE,
@@ -212,6 +227,7 @@ async def seed_sessions():
         session_request_type=RequestType.ONE_ON_ONE,
         status=SessionStatus.WAITING_FOR_STUDENT,
         proposal=NegotiationProposal(
+            new_topic="Graph Algorithms and Shortest Path",
             new_start_time=now + timedelta(days=9, hours=14),
             new_end_time=now + timedelta(days=9, hours=16),
             new_mode=LocationMode.ONLINE,
@@ -264,6 +280,46 @@ async def seed_sessions():
     # --- CREATE ADDITIONAL 11+ COMPLETED SESSIONS FOR MORE FEEDBACK/PROGRESS DATA ---
     import random
     
+    # Topic templates for different courses
+    topics_co3005 = [
+        "Object-Oriented Design Principles",
+        "UML Class Diagrams Deep Dive",
+        "Software Testing Strategies",
+        "Agile Development Methodology",
+        "Microservices Architecture",
+        "Clean Code Best Practices",
+        "Design Patterns - Observer & Strategy",
+        "Code Refactoring Techniques",
+        "API Design and REST Principles",
+        "Software Development Life Cycle",
+    ]
+    
+    topics_co2003 = [
+        "Sorting Algorithms - Quick & Merge Sort",
+        "Dynamic Programming Fundamentals",
+        "Graph Algorithms - DFS and BFS",
+        "Hash Tables and Collision Handling",
+        "Recursion and Backtracking",
+        "Complexity Analysis - Big O Notation",
+        "Linked Lists and Pointers",
+        "Binary Search Trees Operations",
+        "Heap Data Structure",
+        "Algorithm Optimization Techniques",
+    ]
+    
+    topics_as1001 = [
+        "Calculus - Derivatives and Applications",
+        "Integration Techniques",
+        "Linear Algebra - Matrix Operations",
+        "Differential Equations Basics",
+        "Probability and Statistics",
+        "Mathematical Proof Techniques",
+        "Series and Sequences",
+        "Vector Calculus",
+        "Eigenvalues and Eigenvectors",
+        "Optimization Problems",
+    ]
+    
     for i in range(11):
         days_ago = random.randint(8, 30)
         tutor = random.choice([tutor_tuan, tutor_gioi])
@@ -272,10 +328,19 @@ async def seed_sessions():
         mode = random.choice([LocationMode.ONLINE, LocationMode.CAMPUS_1])
         location = random.choice(locations_online if mode == LocationMode.ONLINE else locations_campus)
         
+        # Select topic based on course
+        if course.code == "CO3005":
+            topic = random.choice(topics_co3005)
+        elif course.code == "CO2003":
+            topic = random.choice(topics_co2003)
+        else:
+            topic = random.choice(topics_as1001)
+        
         session = TutorSession(
             tutor=tutor,
             students=[student],
             course=course,
+            topic=topic,
             start_time=now - timedelta(days=days_ago, hours=2),
             end_time=now - timedelta(days=days_ago),
             mode=mode,
@@ -297,10 +362,21 @@ async def seed_sessions():
         course = random.choice([co3005, co2003, as1001])
         status = random.choice([SessionStatus.CONFIRMED, SessionStatus.WAITING_FOR_TUTOR])
         
+        # Only add topic for CONFIRMED sessions
+        topic = None
+        if status == SessionStatus.CONFIRMED:
+            if course.code == "CO3005":
+                topic = random.choice(topics_co3005)
+            elif course.code == "CO2003":
+                topic = random.choice(topics_co2003)
+            else:
+                topic = random.choice(topics_as1001)
+        
         session = TutorSession(
             tutor=tutor,
             students=[student],
             course=course,
+            topic=topic,
             start_time=now + timedelta(days=days_ahead, hours=10),
             end_time=now + timedelta(days=days_ahead, hours=12),
             mode=LocationMode.ONLINE,

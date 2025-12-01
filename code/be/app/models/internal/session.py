@@ -27,12 +27,30 @@ class SessionStatus(str, Enum):
     CANCELLED = "CANCELLED" # Hủy sau khi đã CONFIRMED
     COMPLETED = "COMPLETED" # Đã diễn ra thành công
 
+class ParticipationStatus(str, Enum):
+    """Individual student participation status in a session."""
+    CONFIRMED = "CONFIRMED"  # Student confirmed participation
+    ATTENDED = "ATTENDED"    # Student attended the session
+    ABSENT = "ABSENT"        # Student confirmed but didn't show up
+    CANCELLED = "CANCELLED"  # Student cancelled their participation
+
+# --- STUDENT PARTICIPATION (Embedded Model) ---
+
+class StudentParticipation(BaseModel):
+    """
+    Tracks individual student participation in a session.
+    """
+    student: Link[StudentProfile]
+    status: ParticipationStatus = ParticipationStatus.CONFIRMED
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # --- NEGOTIATION PROPOSAL (Embedded Model) ---
 
 class NegotiationProposal(BaseModel):
     """
     Thông tin đề xuất thay đổi từ Tutor (được nhúng trong Session).
     """
+    new_topic: Optional[str] = None
     new_start_time: Optional[datetime] = None
     new_end_time: Optional[datetime] = None
     new_mode: Optional[LocationMode] = None
@@ -54,9 +72,13 @@ class TutorSession(Document):
     # 1. Identity Links
     tutor: Link[TutorProfile]
     students: List[Link[StudentProfile]] # Danh sách người tham gia (Người book đầu tiên luôn nằm trong list này)
+    
+    # Individual student participation tracking
+    student_participations: Optional[List[StudentParticipation]] = None
 
     # 2. Session Details
     course: Link[Course]
+    topic: Optional[str] = None  # The specific topic or title set by tutor when confirming (e.g., "Introduction to Calculus", "Java OOP Concepts")
     start_time: datetime
     end_time: datetime
     mode: LocationMode  # ONLINE, CAMPUS_1, or CAMPUS_2

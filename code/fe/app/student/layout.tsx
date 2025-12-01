@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 function StudentLayout({
   children,
@@ -108,7 +109,7 @@ function StudentLayout({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full mr-8">
+        <div className="hidden md:flex items-center gap-6 h-full">
           {navSections.map((group) => {
             const isActive = activeParent?.label === group.label;
             return (
@@ -173,6 +174,9 @@ function StudentLayout({
               </div>
             );
           })}
+
+          {/* Notification Bell */}
+          <NotificationDropdown />
         </div>
       </nav>
 

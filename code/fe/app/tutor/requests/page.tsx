@@ -71,7 +71,17 @@ export default function TutorRequestsPage() {
       // Get confirmed sessions (these are the busy slots)
       const confirmedSessions = allSessions.filter(s => s.status === "CONFIRMED");
 
-      // For each pending request, check if it conflicts with confirmed sessions
+      // Get available slots
+      const availabilityResponse = await fetch("http://localhost:8000/availability/me", {
+        credentials: "include",
+      });
+      
+      let availableSlots: any[] = [];
+      if (availabilityResponse.ok) {
+        availableSlots = await availabilityResponse.json();
+      }
+
+      // For each pending request, check if it conflicts with confirmed sessions or lacks availability
       for (const request of pendingRequests) {
         const requestStart = new Date(request.start_time).getTime();
         const requestEnd = new Date(request.end_time).getTime();
@@ -85,15 +95,29 @@ export default function TutorRequestsPage() {
           return (requestStart < confirmedEnd && requestEnd > confirmedStart);
         });
 
-        if (hasConflict) {
+        // Check if there's an available slot that covers this request
+        const hasAvailableSlot = availableSlots.some((slot) => {
+          if (slot.is_booked) return false; // Skip booked slots
+          
+          const slotStart = new Date(slot.start_time).getTime();
+          const slotEnd = new Date(slot.end_time).getTime();
+          
+          // Check if slot fully covers the request time
+          return (slotStart <= requestStart && slotEnd >= requestEnd);
+        });
+
+        // Reject if there's a conflict OR no available slot
+        if (hasConflict || !hasAvailableSlot) {
+          const reason = hasConflict 
+            ? "I'm no longer available at the requested time slot (conflict with confirmed session)"
+            : "I'm no longer available at the requested time slot (availability removed)";
+          
           try {
             const rejectResponse = await fetch(`http://localhost:8000/sessions/${request.id}/reject`, {
               method: "PUT",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                reason: "I'm no longer available at the requested time slot" 
-              }),
+              body: JSON.stringify({ reason }),
             });
 
             if (rejectResponse.ok) {

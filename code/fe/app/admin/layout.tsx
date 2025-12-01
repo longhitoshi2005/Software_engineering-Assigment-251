@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function AdminLayout({
   children,
@@ -68,7 +69,8 @@ export default function AdminLayout({
   );
 
   return (
-    <div className="min-h-screen bg-soft-white-blue">
+    <ProtectedRoute requiredRoles={[Role.PROGRAM_ADMIN]}>
+      <div className="min-h-screen bg-soft-white-blue">
       <nav className="w-full bg-dark-blue h-[60px] flex items-center justify-between px-6 md:px-10">
         <div
           className="flex items-center gap-3 cursor-pointer"
@@ -94,7 +96,7 @@ export default function AdminLayout({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full mr-8">
+        <div className="hidden md:flex items-center gap-6 h-full">
           {navSections.map((group) => {
             const isActive = activeParent?.label === group.label;
             return (
@@ -159,11 +161,14 @@ export default function AdminLayout({
               </div>
             );
           })}
+
+          {/* Notification Bell */}
+          <NotificationDropdown />
         </div>
       </nav>
 
       <main className="w-full">{children}</main>
-    </div>
+      </div>
     </ProtectedRoute>
   );
 }

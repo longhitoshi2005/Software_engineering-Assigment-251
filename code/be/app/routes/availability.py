@@ -28,6 +28,7 @@ async def get_tutor_availability(
 ):
     """
     [Discovery] Retrieves a list of available (unbooked) slots for a specific tutor ID.
+    Use 'me' as tutor_id to get your own availability (requires Tutor role).
     Requires: Any authenticated user.
     """
-    return await ScheduleService.get_slots(tutor_id)
+    return await ScheduleService.get_slots(tutor_id, current_user)

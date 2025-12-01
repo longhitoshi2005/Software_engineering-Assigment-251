@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import HTTPException, status
 from beanie import PydanticObjectId
@@ -9,7 +9,7 @@ from app.models.internal.user import User
 from app.models.internal.tutor_profile import TutorProfile
 from app.models.internal.student_profile import StudentProfile
 from app.models.internal.availability import AvailabilitySlot
-from app.models.internal.session import TutorSession, SessionStatus, NegotiationProposal
+from app.models.internal.session import TutorSession, SessionStatus, NegotiationProposal, StudentParticipation, ParticipationStatus
 from app.models.internal.notification import NotificationType
 from app.models.internal.feedback import SessionFeedback
 from app.models.external.course import Course
@@ -183,16 +183,32 @@ class ScheduleService:
         )
     
     @staticmethod
-    async def get_slots(tutor_id: str) -> List[AvailabilityResponse]:
+    async def get_slots(tutor_id: str, current_user: User = None) -> List[AvailabilityResponse]:
         """
         Retrieves all available (unbooked) slots for a tutor.
         
         Args:
-            tutor_id: The tutor's profile ID
+            tutor_id: The tutor's profile ID or 'me' for current user
+            current_user: The authenticated user (optional, required if tutor_id is 'me')
             
         Returns:
             List of available slots sorted by start time
         """
+        # Handle 'me' as a special case
+        if tutor_id == "me":
+            if not current_user:
+                from fastapi import HTTPException, status as http_status
+                raise HTTPException(http_status.HTTP_401_UNAUTHORIZED, "Authentication required")
+            
+            # Get tutor profile from current user
+            from app.models.internal.tutor_profile import TutorProfile
+            tutor_profile = await TutorProfile.find_one(TutorProfile.user.id == current_user.id)
+            if not tutor_profile:
+                from fastapi import HTTPException, status as http_status
+                raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Tutor profile not found")
+            
+            tutor_id = str(tutor_profile.id)
+        
         slots = await AvailabilitySlot.find(
             AvailabilitySlot.tutor.id == PydanticObjectId(tutor_id),
             AvailabilitySlot.is_booked == False 
@@ -327,20 +343,23 @@ class ScheduleService:
         proposed_start = payload.new_start_time or session.start_time
         proposed_end = payload.new_end_time or session.end_time
         
+        # Check if tutor has any session (any status except REJECTED/CANCELLED) in that time
         overlap_check = await TutorSession.find_one(
             TutorSession.tutor.id == session.tutor.ref.id,
-            TutorSession.status == SessionStatus.CONFIRMED,
+            TutorSession.id != session.id,
+            TutorSession.status.nin([SessionStatus.REJECTED, SessionStatus.CANCELLED]),
             TutorSession.start_time < proposed_end,
             TutorSession.end_time > proposed_start
         )
         if overlap_check:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, 
-                "Proposed time overlaps with another confirmed session."
+                "Proposed time overlaps with another session."
             )
 
         # Create proposal with ALL fields (including capacity/publicity override)
         session.proposal = NegotiationProposal(
+            new_topic=payload.new_topic,
             new_start_time=payload.new_start_time,
             new_end_time=payload.new_end_time,
             new_mode=payload.new_mode,
@@ -362,7 +381,7 @@ class ScheduleService:
         await student.fetch_link(StudentProfile.user)
         await NotificationService.create_system_notification(
             receiver_user=student.user,
-            n_type=NotificationType.BOOKING_REQUEST,
+            n_type=NotificationType.NEGOTIATION_PROPOSAL,
             session=session,
             extra_message=f"The tutor has proposed changes to your session request. Message: {payload.message}"
         )
@@ -423,26 +442,25 @@ class ScheduleService:
             # Determine final time (from proposal or original)
             final_start = session.proposal.new_start_time or session.start_time
             final_end = session.proposal.new_end_time or session.end_time
-            
-            # Find availability slot that covers the final time
-            original_slot = await AvailabilitySlot.find_one(
-                AvailabilitySlot.tutor.id == session.tutor.id,
-                AvailabilitySlot.start_time <= final_start,
-                AvailabilitySlot.end_time >= final_end,
-                AvailabilitySlot.is_booked == False
-            )
-            if not original_slot:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST, 
-                    "Availability slot not found (already booked or deleted)."
-                )
 
             # Update session time to final negotiated values
             session.start_time = final_start
             session.end_time = final_end
+            
+            # Remove any availability slots that overlap with the new time
+            overlapping_slots = await AvailabilitySlot.find(
+                AvailabilitySlot.tutor.id == session.tutor.ref.id,
+                AvailabilitySlot.start_time < final_end,
+                AvailabilitySlot.end_time > final_start,
+                AvailabilitySlot.is_booked == False
+            ).to_list()
+            
+            for slot in overlapping_slots:
+                await ScheduleService._split_availability_slot(slot, session)
 
-            # Perform slot splitting IMMEDIATELY
-            await ScheduleService._split_availability_slot(original_slot, session)
+            # Apply topic change from proposal
+            if session.proposal.new_topic:
+                session.topic = session.proposal.new_topic
 
             # Apply location/mode changes from proposal
             if session.proposal.new_mode is not None:
@@ -451,6 +469,8 @@ class ScheduleService:
                 session.location = session.proposal.new_location
             
             # Apply capacity/publicity from confirmation details (final agreed values)
+            if not session.topic and confirm_details.topic:
+                session.topic = confirm_details.topic  # Use confirmation topic if not set by proposal
             session.max_capacity = confirm_details.max_capacity
             session.is_public = confirm_details.is_public
             if confirm_details.final_location_link:
@@ -552,8 +572,9 @@ class ScheduleService:
 
             await ScheduleService._split_availability_slot(original_slot, session)
             
-            # Apply final capacity/publicity/location
+            # Apply final capacity/publicity/location and topic
             session.status = SessionStatus.CONFIRMED
+            session.topic = confirm_details.topic  # Tutor sets the topic when confirming
             session.max_capacity = confirm_details.max_capacity
             session.is_public = confirm_details.is_public
             if confirm_details.final_location_link:
@@ -862,13 +883,21 @@ class ScheduleService:
                 new_is_public=session.proposal.new_is_public
             )
         
-        # Get primary student (first in list)
-        student = session.students[0] 
-        await student.fetch_link(StudentProfile.user)
-        await student.user.fetch_link(User.sso_info)
+        # Get primary student (first in list) - handle case where all students left
+        student_id = None
+        student_name = None
+        
+        if len(session.students) > 0:
+            student = session.students[0] 
+            await student.fetch_link(StudentProfile.user)
+            await student.user.fetch_link(User.sso_info)
+            student_id = student.user.sso_info.identity_id
+            student_name = student.user.full_name
         
         # Get feedback status for current user (only if user is a student)
         feedback_status = None
+        is_requester = None
+        
         if UserRole.STUDENT in user.roles:
             # Find student profile for current user
             student_profile = await StudentProfile.find_one(StudentProfile.user.id == user.id)
@@ -876,6 +905,10 @@ class ScheduleService:
                 # Check if this student is part of the session
                 student_ids = [str(s.id) for s in session.students]
                 if str(student_profile.id) in student_ids:
+                    # Check if this student is the requester (first student)
+                    if session.is_public and len(session.students) > 0:
+                        is_requester = str(session.students[0].id) == str(student_profile.id)
+                    
                     # Query feedback for this session and student
                     feedback = await SessionFeedback.find_one(
                         SessionFeedback.session.id == session.id,
@@ -884,15 +917,42 @@ class ScheduleService:
                     if feedback:
                         feedback_status = feedback.status.value
         
+        # Build students list with all enrolled students and their participation status
+        students_list = []
+        
+        # If we have participation tracking, use it; otherwise fall back to students list
+        if session.student_participations:
+            for participation in session.student_participations:
+                await participation.student.fetch_link(StudentProfile.user)
+                await participation.student.user.fetch_link(User.sso_info)
+                students_list.append({
+                    "id": str(participation.student.id),
+                    "student_id": participation.student.user.sso_info.identity_id,
+                    "full_name": participation.student.user.full_name,
+                    "status": participation.status.value
+                })
+        else:
+            # Legacy sessions without participation tracking
+            for student_link in session.students:
+                await student_link.fetch_link(StudentProfile.user)
+                await student_link.user.fetch_link(User.sso_info)
+                students_list.append({
+                    "id": str(student_link.id),
+                    "student_id": student_link.user.sso_info.identity_id,
+                    "full_name": student_link.user.full_name,
+                    "status": "CONFIRMED"  # Default for legacy data
+                })
+        
         # Use snapshot data from User model (DRY - no redundant fetching)
         return SessionResponse(
             id=str(session.id),
             tutor_id=str(tutor.id),
             tutor_name=tutor.user.full_name,  # Snapshot data
-            student_id=student.user.sso_info.identity_id,  # MSSV from SSO
-            student_name=student.user.full_name,  # Snapshot data
+            student_id=student_id,  # MSSV from SSO (None if no students)
+            student_name=student_name,  # Snapshot data (None if no students)
             course_code=session.course.code,
             course_name=session.course.name,
+            topic=session.topic,
             start_time=session.start_time,
             end_time=session.end_time,
             mode=session.mode,
@@ -904,6 +964,443 @@ class ScheduleService:
             session_request_type=session.session_request_type,
             max_capacity=session.max_capacity,
             is_public=session.is_public,
+            is_requester=is_requester,
+            # All students in session
+            students=students_list,
             # Feedback status
             feedback_status=feedback_status
         )
+    
+    # ==========================================
+    # 9. UPDATE SESSION LOCATION
+    # ==========================================
+    
+    @staticmethod
+    async def update_session_location(session_id: str, user: User, location: str) -> SessionResponse:
+        """
+        Updates the location/meeting link for a session.
+        Only the tutor can update this, and only before the session starts.
+        """
+        # 1. Get session
+        session = await TutorSession.get(session_id)
+        if not session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+        
+        # 2. Verify user is the tutor
+        await session.fetch_link(TutorSession.tutor)
+        tutor = session.tutor
+        await tutor.fetch_link(TutorProfile.user)
+        
+        if str(tutor.user.id) != str(user.id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the tutor can update session location")
+        
+        # 3. Check if session has already started
+        now = datetime.now(timezone.utc)
+        if session.start_time <= now:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot update location after session has started")
+        
+        # 4. Update location
+        session.location = location
+        await session.save()
+        
+        # 5. Return updated session
+        return await ScheduleService._map_session_response(session, user)
+    
+    # ==========================================
+    # 10. UPDATE SESSION TOPIC
+    # ==========================================
+    
+    @staticmethod
+    async def update_session_topic(session_id: str, user: User, topic: str) -> SessionResponse:
+        """
+        Updates the topic/title for a session.
+        Only the tutor can update this.
+        """
+        # 1. Get session
+        session = await TutorSession.get(session_id)
+        if not session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+        
+        # 2. Verify user is the tutor
+        await session.fetch_link(TutorSession.tutor)
+        tutor = session.tutor
+        await tutor.fetch_link(TutorProfile.user)
+        
+        if str(tutor.user.id) != str(user.id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the tutor can update session topic")
+        
+        # 3. Update topic
+        session.topic = topic
+        await session.save()
+        
+        # 4. Return updated session
+        return await ScheduleService._map_session_response(session, user)
+    
+    # ==========================================
+    # 11. UPDATE STUDENT PARTICIPATION STATUS
+    # ==========================================
+    
+    @staticmethod
+    async def update_student_participation(
+        session_id: str, 
+        student_id: str, 
+        user: User, 
+        status: str
+    ) -> SessionResponse:
+        """
+        Updates a student's participation status for a session.
+        Tutor can update status from 30 minutes before session start to 1 day after.
+        
+        Valid statuses: CONFIRMED, ATTENDED, ABSENT, CANCELLED
+        """
+        from app.models.internal.session import ParticipationStatus
+        
+        # 1. Validate status
+        try:
+            participation_status = ParticipationStatus(status)
+        except ValueError:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status. Must be one of: {', '.join([s.value for s in ParticipationStatus])}"
+            )
+        
+        # 2. Get session
+        session = await TutorSession.get(session_id)
+        if not session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+        
+        # 3. Verify user is the tutor
+        await session.fetch_link(TutorSession.tutor)
+        tutor = session.tutor
+        await tutor.fetch_link(TutorProfile.user)
+        
+        if str(tutor.user.id) != str(user.id):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the tutor can update participation status")
+        
+        # 4. Check time window (30 min before to 1 day after session start)
+        now = datetime.now(timezone.utc)
+        time_before_start = timedelta(minutes=30)
+        time_after_start = timedelta(days=1)
+        
+        earliest_allowed = session.start_time - time_before_start
+        latest_allowed = session.start_time + time_after_start
+        
+        if now < earliest_allowed or now > latest_allowed:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="Participation status can only be updated from 30 minutes before to 1 day after session start time"
+            )
+        
+        # 5. Find and update student participation
+        if not session.student_participations:
+            # Initialize participations from students list
+            session.student_participations = []
+            for student_link in session.students:
+                session.student_participations.append(
+                    StudentParticipation(student=student_link, status=ParticipationStatus.CONFIRMED)
+                )
+        
+        # Find the student
+        student_found = False
+        for participation in session.student_participations:
+            if str(participation.student.ref.id) == student_id:
+                participation.status = participation_status
+                student_found = True
+                break
+        
+        if not student_found:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found in this session")
+        
+        # 6. Save and return
+        await session.save()
+        return await ScheduleService._map_session_response(session, user)
+
+    # ==========================================
+    # PUBLIC SESSIONS DISCOVERY
+    # ==========================================
+    @staticmethod
+    async def get_public_sessions(
+        course_code: Optional[str] = None,
+        tutor_name: Optional[str] = None,
+        limit: int = 20,
+        current_user: Optional[User] = None
+    ) -> List[SessionResponse]:
+        """
+        [Student] Get list of public sessions with available slots.
+        Returns CONFIRMED public sessions that haven't started yet and have capacity.
+        If current_user is provided, includes is_joined field.
+        """
+        # Get student profile if user is provided
+        student = None
+        if current_user:
+            student = await StudentProfile.find_one(StudentProfile.user.id == current_user.id)
+        
+        # Build query
+        query = {
+            "is_public": True,
+            "status": SessionStatus.CONFIRMED,
+            "start_time": {"$gt": datetime.now(timezone.utc)}
+        }
+        
+        # Fetch sessions
+        sessions = await TutorSession.find(query).sort("+start_time").limit(limit).to_list()
+        
+        # Filter sessions with available slots and apply filters
+        result = []
+        for session in sessions:
+            # Apply course filter
+            if course_code:
+                await session.fetch_link(TutorSession.course)
+                if course_code.lower() not in session.course.code.lower():
+                    continue
+            
+            # Apply tutor name filter
+            if tutor_name:
+                await session.fetch_link(TutorSession.tutor)
+                await session.tutor.fetch_link(TutorProfile.user)
+                if tutor_name.lower() not in session.tutor.user.full_name.lower():
+                    continue
+            
+            # Map to response
+            response = await ScheduleService._map_public_session_response(session, student)
+            result.append(response)
+        
+        return result
+    
+    @staticmethod
+    async def _map_public_session_response(session: TutorSession, student: Optional[StudentProfile] = None) -> SessionResponse:
+        """Map a public session to response format with tutor and course details."""
+        # Fetch related data
+        await session.fetch_link(TutorSession.tutor)
+        await session.tutor.fetch_link(TutorProfile.user)
+        await session.fetch_link(TutorSession.course)
+        
+        # Check if student has joined
+        is_joined = False
+        if student:
+            await session.fetch_all_links()
+            student_ids = [s.id for s in session.students]
+            is_joined = student.id in student_ids
+        
+        # Build response
+        return SessionResponse(
+            id=str(session.id),
+            tutor_id=str(session.tutor.id),
+            tutor_name=session.tutor.user.full_name,
+            course_code=session.course.code,
+            course_name=session.course.name,
+            topic=session.topic,
+            start_time=session.start_time,
+            end_time=session.end_time,
+            mode=session.mode.value,
+            location=session.location,
+            status=session.status.value,
+            created_at=session.created_at,
+            session_request_type=session.session_request_type.value,
+            max_capacity=session.max_capacity,
+            is_public=session.is_public,
+            available_slots=session.max_capacity - len(session.students),
+            students=None,  # Don't expose student list for public sessions
+            student_id=None,  # Public sessions don't have a single initiator
+            student_name=None,
+            is_joined=is_joined
+        )
+
+    @staticmethod
+    async def join_public_session(session_id: str, user: User) -> SessionResponse:
+        """
+        [Student] Join a public session if it has available slots.
+        """
+        # 1. Get student profile
+        student = await StudentProfile.find_one(StudentProfile.user.id == user.id)
+        if not student:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Student profile not found")
+        
+        # 2. Get session
+        session = await TutorSession.get(session_id)
+        if not session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+        
+        # 3. Verify session is public and confirmed
+        if not session.is_public:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "This is not a public session")
+        
+        if session.status != SessionStatus.CONFIRMED:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session is not confirmed yet")
+        
+        # 4. Check if session hasn't started
+        # Make start_time timezone-aware for comparison (MongoDB stores as UTC)
+        session_start = session.start_time.replace(tzinfo=timezone.utc) if session.start_time.tzinfo is None else session.start_time
+        if session_start <= datetime.now(timezone.utc):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session has already started")
+        
+        # 5. Check if student is already enrolled
+        # Fetch students to compare IDs properly
+        await session.fetch_all_links()
+        student_ids = [s.id for s in session.students]
+        if student.id in student_ids:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "You are already enrolled in this session")
+        
+        # 6. Check available slots
+        if len(session.students) >= session.max_capacity:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session is full")
+        
+        # 7. Add student to session
+        session.students.append(student)
+        
+        # Initialize participation
+        if not session.student_participations:
+            session.student_participations = []
+        session.student_participations.append(
+            StudentParticipation(student=student, status=ParticipationStatus.CONFIRMED)
+        )
+        
+        await session.save()
+        
+        # 8. Send notification to student
+        await NotificationService.create_system_notification(
+            receiver_user=user,
+            n_type=NotificationType.SESSION_CONFIRMED,
+            session=session,
+            extra_message="You have successfully joined a public session."
+        )
+        
+        return await ScheduleService._map_session_response(session, user)
+
+    @staticmethod
+    async def leave_public_session(session_id: str, user: User) -> dict:
+        """
+        [Student] Leave a public session before it starts.
+        
+        Special rules:
+        - Requester can leave like any other student (session NOT cancelled unless all students leave)
+        - If you leave < 2 hours before start, you're marked as CANCELLED but NOT removed from session
+        - Otherwise, you're removed from the session completely
+        - Session is only cancelled if all students have left/cancelled OR tutor cancels
+        """
+        # 1. Get student profile
+        student = await StudentProfile.find_one(StudentProfile.user.id == user.id)
+        if not student:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Student profile not found")
+        
+        # 2. Get session
+        session = await TutorSession.get(session_id)
+        if not session:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
+        
+        # 3. Verify session is public and confirmed
+        if not session.is_public:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "This is not a public session")
+        
+        if session.status != SessionStatus.CONFIRMED:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Session is not confirmed")
+        
+        # 4. Check if session hasn't started
+        session_start = session.start_time.replace(tzinfo=timezone.utc) if session.start_time.tzinfo is None else session.start_time
+        current_time = datetime.now(timezone.utc)
+        
+        if session_start <= current_time:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot leave a session that has already started")
+        
+        # 5. Check if student is enrolled
+        await session.fetch_all_links()
+        student_index = -1
+        
+        for i, s in enumerate(session.students):
+            if s.id == student.id:
+                student_index = i
+                break
+        
+        if student_index == -1:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "You are not enrolled in this session")
+        
+        # 6. Check if student is the requester (first student in list)
+        is_requester = student_index == 0
+        
+        # 7. Calculate time until session starts
+        hours_until_start = (session_start - current_time).total_seconds() / 3600
+        
+        # 8. Determine if this is a late leave (<= 2 hours)
+        is_late_leave = hours_until_start <= 2
+        
+        # Initialize participation tracking if not exists
+        if not session.student_participations:
+            session.student_participations = []
+            for student_link in session.students:
+                session.student_participations.append(
+                    StudentParticipation(student=student_link, status=ParticipationStatus.CONFIRMED)
+                )
+        
+        # Determine action based on requester status and timing
+        if is_requester:
+            # Requester ALWAYS stays in list with CANCELLED status (regardless of timing)
+            for participation in session.student_participations:
+                if participation.student.id == student.id:
+                    participation.status = ParticipationStatus.CANCELLED
+                    break
+            
+            message = "You are the requester. Your participation has been marked as CANCELLED."
+            cancelled_flag = True
+            removed_flag = False
+            
+        elif is_late_leave:
+            # Non-requester late leave (<= 2 hours) - mark as CANCELLED, keep in list
+            for participation in session.student_participations:
+                if participation.student.id == student.id:
+                    participation.status = ParticipationStatus.CANCELLED
+                    break
+            
+            message = "You left less than 2 hours before the session. Your participation has been marked as CANCELLED."
+            cancelled_flag = True
+            removed_flag = False
+            
+        else:
+            # Non-requester early leave (> 2 hours) - REMOVE from list completely
+            session.students = [s for s in session.students if s.id != student.id]
+            session.student_participations = [
+                p for p in session.student_participations 
+                if p.student.id != student.id
+            ]
+            
+            message = "You have been removed from the public session."
+            cancelled_flag = False
+            removed_flag = True
+        
+        # Check if ALL students have cancelled - if so, cancel the session
+        all_cancelled = all(p.status == ParticipationStatus.CANCELLED for p in session.student_participations)
+        
+        if all_cancelled and len(session.student_participations) > 0:
+            session.status = SessionStatus.CANCELLED
+            session.cancelled_by = "all_students_cancelled"
+            
+            # Notify tutor
+            await session.fetch_link(TutorSession.tutor)
+            await session.tutor.fetch_link(TutorProfile.user)
+            await NotificationService.create_system_notification(
+                receiver_user=session.tutor.user,
+                n_type=NotificationType.SESSION_CANCELLED,
+                session=session,
+                extra_message="All students have cancelled their participation. The session has been cancelled."
+            )
+            
+            message += " The session has been cancelled as all students have cancelled."
+        
+        await session.save()
+        
+        # Notify student
+        notification_type = NotificationType.SESSION_CANCELLED if cancelled_flag else NotificationType.SESSION_CONFIRMED
+        await NotificationService.create_system_notification(
+            receiver_user=user,
+            n_type=notification_type,
+            session=session,
+            extra_message=message
+        )
+        
+        return {
+            "message": message,
+            "cancelled": cancelled_flag,
+            "removed": removed_flag,
+            "is_requester": is_requester,
+            "late_leave": is_late_leave if not is_requester else None,
+            "session_cancelled": all_cancelled if len(session.student_participations) > 0 else False
+        }

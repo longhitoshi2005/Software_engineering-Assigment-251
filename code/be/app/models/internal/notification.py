@@ -12,6 +12,7 @@ from .session import TutorSession
 # --- ENUMS ---
 class NotificationType(str, Enum):
     BOOKING_REQUEST = "BOOKING_REQUEST"
+    NEGOTIATION_PROPOSAL = "NEGOTIATION_PROPOSAL"  # Tutor proposes changes to student's request
     SESSION_CONFIRMED = "SESSION_CONFIRMED"
     SESSION_REJECTED = "SESSION_REJECTED"
     SESSION_CANCELLED = "SESSION_CANCELLED"

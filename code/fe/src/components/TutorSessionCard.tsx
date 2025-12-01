@@ -10,9 +10,9 @@ interface SessionCardProps {
     start_time: string;
     end_time: string;
     mode: string;
-    location: string | null;
+    location?: string | null;
     session_request_type?: string;
-    students: Array<{ id: string; student_name: string; status?: string }>;
+    students: Array<{ id: string; full_name?: string; status?: string }>;
     max_capacity?: number;
     status: string;
   };

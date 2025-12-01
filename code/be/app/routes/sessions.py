@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, status
 from typing import List, Optional
 
-from app.core.deps import RoleChecker, get_current_user
+from app.core.deps import RoleChecker, get_current_user, get_current_user_optional
 from app.models.internal.user import User
 from app.models.schemas.schedule import (
     SessionResponse, 
@@ -41,6 +41,16 @@ async def get_my_sessions(
     - If not specified, defaults to student view if student profile exists, otherwise tutor view
     """
     return await ScheduleService.get_user_sessions(current_user, role)
+
+@router.get("/public", response_model=List[SessionResponse])
+async def get_public_sessions(
+    course_code: Optional[str] = None,
+    tutor_name: Optional[str] = None,
+    limit: int = 20,
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """[Public] Get list of public sessions with available slots that students can join."""
+    return await ScheduleService.get_public_sessions(course_code, tutor_name, limit, current_user)
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session_detail(
@@ -132,6 +142,37 @@ async def cancel_session(
     return await ScheduleService.handle_session_action(session_id, current_user, "cancel", reason)
 
 
+@router.patch("/{session_id}/location", response_model=SessionResponse)
+async def update_session_location(
+    session_id: str,
+    location: str = Body(..., embed=True),
+    current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
+):
+    """[Tutor] Updates the location/meeting link for a session (only before session starts)."""
+    return await ScheduleService.update_session_location(session_id, current_user, location)
+
+
+@router.patch("/{session_id}/topic", response_model=SessionResponse)
+async def update_session_topic(
+    session_id: str,
+    topic: str = Body(..., embed=True),
+    current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
+):
+    """[Tutor] Updates the topic/title for a session."""
+    return await ScheduleService.update_session_topic(session_id, current_user, topic)
+
+
+@router.patch("/{session_id}/students/{student_id}/participation", response_model=SessionResponse)
+async def update_student_participation(
+    session_id: str,
+    student_id: str,
+    status: str = Body(..., embed=True),
+    current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
+):
+    """[Tutor] Updates student participation status (30 min before to 1 day after session start)."""
+    return await ScheduleService.update_student_participation(session_id, student_id, current_user, status)
+
+
 @router.put("/invite/{session_id}/{action}", status_code=status.HTTP_200_OK)
 async def respond_to_invite(
     session_id: str,
@@ -145,3 +186,19 @@ async def respond_to_invite(
     await ScheduleService.respond_to_invite(session_id, current_user, action)
     
     return {"message": f"Invitation {action}ed successfully."}
+
+@router.post("/{session_id}/join", response_model=SessionResponse)
+async def join_public_session(
+    session_id: str,
+    current_user: User = Depends(RoleChecker([UserRole.STUDENT]))
+):
+    """[Student] Join a public session with available slots."""
+    return await ScheduleService.join_public_session(session_id, current_user)
+
+@router.post("/{session_id}/leave")
+async def leave_public_session(
+    session_id: str,
+    current_user: User = Depends(RoleChecker([UserRole.STUDENT]))
+):
+    """[Student] Leave a public session before it starts."""
+    return await ScheduleService.leave_public_session(session_id, current_user)

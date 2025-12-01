@@ -16,6 +16,109 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showDevMode, setShowDevMode] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  // Dev-only quick login accounts
+  const devAccounts = [
+    { name: "Lan Tran", username: "lan.tran", roles: ["STUDENT"], password: "123" },
+    { name: "Gioi", username: "student_gioi", roles: ["STUDENT", "TUTOR"], password: "123" },
+    { name: "Tuan Pham (Tutor)", username: "tuan.pham", roles: ["TUTOR"], password: "123" },
+    { name: "Head CSE (Admin)", username: "head.cse", roles: ["DEPARTMENT_CHAIR"], password: "123" },
+    { name: "An Nguyen", username: "an.nguyen", roles: ["STUDENT"], password: "123" },
+    { name: "Binh Tran", username: "binh.tran", roles: ["STUDENT"], password: "123" },
+    { name: "Cuong Le", username: "cuong.le", roles: ["STUDENT"], password: "123" },
+    { name: "Dung Pham", username: "dung.pham", roles: ["STUDENT"], password: "123" },
+    { name: "Em Hoang", username: "em.hoang", roles: ["STUDENT"], password: "123" },
+    { name: "Phuong Vo", username: "phuong.vo", roles: ["STUDENT"], password: "123" },
+    { name: "Gia Do", username: "gia.do", roles: ["STUDENT"], password: "123" },
+    { name: "Hoa Bui", username: "hoa.bui", roles: ["STUDENT"], password: "123" },
+    { name: "Kha Dinh", username: "kha.dinh", roles: ["STUDENT"], password: "123" },
+    { name: "Linh Ngo", username: "linh.ngo", roles: ["STUDENT"], password: "123" },
+    { name: "Minh Truong", username: "minh.truong", roles: ["STUDENT"], password: "123" },
+    { name: "Nga Ly", username: "nga.ly", roles: ["STUDENT"], password: "123" },
+    { name: "Phong Duong", username: "phong.duong", roles: ["STUDENT"], password: "123" },
+    { name: "Quynh Trinh", username: "quynh.trinh", roles: ["STUDENT"], password: "123" },
+    { name: "Son Mai", username: "son.mai", roles: ["STUDENT"], password: "123" },
+    { name: "Thao Ha", username: "thao.ha", roles: ["STUDENT"], password: "123" },
+    { name: "Tuan Vu", username: "tuan.vu", roles: ["STUDENT"], password: "123" },
+    { name: "Uyen Dang", username: "uyen.dang", roles: ["STUDENT"], password: "123" },
+    { name: "Vinh Cao", username: "vinh.cao", roles: ["STUDENT"], password: "123" },
+    { name: "Xuan Phan", username: "xuan.phan", roles: ["STUDENT"], password: "123" },
+  ];
+
+  // Filter accounts based on role
+  const filteredAccounts = roleFilter === "all" 
+    ? devAccounts 
+    : devAccounts.filter(account => {
+        if (roleFilter === "student") return account.roles.includes("STUDENT");
+        if (roleFilter === "tutor") return account.roles.includes("TUTOR");
+        if (roleFilter === "dept") return account.roles.includes("DEPARTMENT_CHAIR");
+        if (roleFilter === "coord") return account.roles.includes("COORDINATOR");
+        if (roleFilter === "sa") return account.roles.includes("STUDENT_AFFAIRS");
+        if (roleFilter === "admin") return account.roles.includes("PROGRAM_ADMIN");
+        return true;
+      });
+
+  const handleDevLogin = async (account: typeof devAccounts[0]) => {
+    setUsername(account.username);
+    setPassword(account.password);
+    setLoading(true);
+    setError("");
+
+    try {
+      const loginData: LoginRequest = {
+        username: account.username,
+        password: account.password,
+      };
+
+      await api.post("/auth/login", loginData);
+      const userInfo = await api.get("/users/me");
+
+      if (!userInfo.roles || userInfo.roles.length === 0) {
+        setError("Account role not configured");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("userEmail", `${account.username}@hcmut.edu.vn`);
+      localStorage.setItem("username", account.username);
+      
+      let primaryRole: Role;
+      let redirectPath: string;
+
+      if (userInfo.roles.includes("TUTOR")) {
+        primaryRole = Role.TUTOR;
+        redirectPath = "/tutor/dashboard";
+      } else if (userInfo.roles.includes("STUDENT")) {
+        primaryRole = Role.STUDENT;
+        redirectPath = "/student/dashboard";
+      } else if (userInfo.roles.includes("DEPARTMENT_CHAIR")) {
+        primaryRole = Role.DEPARTMENT_CHAIR;
+        redirectPath = "/dept";
+      } else if (userInfo.roles.includes("COORDINATOR")) {
+        primaryRole = Role.COORDINATOR;
+        redirectPath = "/coord";
+      } else if (userInfo.roles.includes("STUDENT_AFFAIRS")) {
+        primaryRole = Role.STUDENT_AFFAIRS;
+        redirectPath = "/sa";
+      } else if (userInfo.roles.includes("PROGRAM_ADMIN")) {
+        primaryRole = Role.PROGRAM_ADMIN;
+        redirectPath = "/admin";
+      } else {
+        setError("Account role not supported");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('userRole', primaryRole);
+      setClientRole(primaryRole);
+      router.push(redirectPath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Quick login failed");
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Check if redirected due to authentication error
@@ -177,7 +280,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading}
                 className="w-full text-sm font-semibold rounded-lg px-4 py-3 transition disabled:opacity-50"
-                style={{ background: "var(--color-light-heavy-blue)", color: "var(--color-white)" }}
+                style={{ background: "var(--color-light-heavy-blue)", color: "white" }}
               >
                 {loading ? "Signing in..." : "Sign In"}
               </button>
@@ -185,28 +288,71 @@ export default function LoginPage() {
 
             {/* Test Accounts Info */}
             <div className="mt-6 p-4 bg-soft-white-blue rounded-lg border border-black/10">
-              <p className="text-xs font-semibold text-dark-blue mb-2">Test Accounts (Username / Password):</p>
-              <div className="space-y-1 text-xs text-black/70">
-                <div className="flex justify-between">
-                  <span>Student (Lan):</span>
-                  <span className="font-mono">lan.tran / 123</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Student (Gioi):</span>
-                  <span className="font-mono">student_gioi / 123</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Lecturer (Tuấn):</span>
-                  <span className="font-mono">tuan.pham / 123</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Department Head:</span>
-                  <span className="font-mono">head.cse / 123</span>
-                </div>
-                <div className="text-xs text-black/50 mt-2 pt-2 border-t border-black/10">
-                  🔒 Email is auto-generated as username@hcmut.edu.vn
-                </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-dark-blue">Dev Quick Login:</p>
+                <button
+                  type="button"
+                  onClick={() => setShowDevMode(!showDevMode)}
+                  className="text-xs px-3 py-1.5 rounded bg-dark-blue text-white hover:bg-dark-blue/80 transition"
+                >
+                  {showDevMode ? "Hide" : "Show Accounts"}
+                </button>
               </div>
+
+              {showDevMode && (
+                <div className="space-y-2">
+                  {/* Role Filter */}
+                  <div className="flex gap-1 flex-wrap pb-2 border-b border-black/10">
+                    {[
+                      { label: "All", value: "all" },
+                      { label: "Student", value: "student" },
+                      { label: "Tutor", value: "tutor" },
+                      { label: "Dept", value: "dept" },
+                      { label: "Coord", value: "coord" },
+                      { label: "SA", value: "sa" },
+                      { label: "Admin", value: "admin" },
+                    ].map((filter) => (
+                      <button
+                        key={filter.value}
+                        type="button"
+                        onClick={() => setRoleFilter(filter.value)}
+                        className={`text-[0.65rem] px-2 py-1 rounded transition ${
+                          roleFilter === filter.value
+                            ? "bg-light-heavy-blue text-white"
+                            : "bg-white text-dark-blue border border-black/10 hover:border-light-heavy-blue/50"
+                        }`}
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Scrollable Account List */}
+                  <div className="max-h-[240px] overflow-y-auto space-y-2 pr-1">
+                    {filteredAccounts.map((account) => (
+                      <div
+                        key={account.username}
+                        className="flex items-center justify-between p-2 bg-white rounded border border-black/10 hover:border-light-heavy-blue/30 transition"
+                      >
+                        <div className="flex-1">
+                          <div className="text-xs font-semibold text-dark-blue">{account.name}</div>
+                          <div className="text-[0.65rem] text-black/60">
+                            {account.roles.join(", ")}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDevLogin(account)}
+                          disabled={loading}
+                          className="text-xs px-3 py-1 rounded bg-light-heavy-blue text-white hover:bg-light-heavy-blue/80 transition disabled:opacity-50"
+                        >
+                          Use
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

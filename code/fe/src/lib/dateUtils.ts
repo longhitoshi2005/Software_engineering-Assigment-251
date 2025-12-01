@@ -100,7 +100,7 @@ export function formatTimeRange(startIso: string, endIso: string): string {
  * Format time ago (e.g., "15 min ago", "2 hours ago")
  */
 export function formatTimeAgo(isoString: string): string {
-  const date = new Date(isoString);
+  const date = parseUTC(isoString); // Use parseUTC for consistent timezone handling
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

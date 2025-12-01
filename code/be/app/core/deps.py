@@ -36,6 +36,25 @@ async def get_current_user(access_token: Optional[str] = Cookie(None)) -> User:
 
     return user
 
+async def get_current_user_optional(access_token: Optional[str] = Cookie(None)) -> Optional[User]:
+    """
+    Optionally authenticates the user by verifying the access_token in the cookie.
+    Returns None if not authenticated, otherwise returns the User object.
+    """
+    if not access_token:
+        return None
+    
+    try:
+        user_id = PydanticObjectId(access_token)
+    except:
+        return None
+
+    user = await User.get(user_id)
+    if not user or not user.is_active:
+        return None
+
+    return user
+
 # --- LEVEL 2: AUTHORIZATION (Authorization) ---
 
 class RoleChecker:

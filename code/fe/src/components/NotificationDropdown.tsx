@@ -7,26 +7,6 @@ import { formatTimeAgo } from "@/lib/dateUtils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-// Notification icon mapping
-const notificationIcons: Record<NotificationType, string> = {
-  [NotificationType.BOOKING_REQUEST]: "📬",
-  [NotificationType.SESSION_CONFIRMED]: "✅",
-  [NotificationType.SESSION_REJECTED]: "❌",
-  [NotificationType.SESSION_CANCELLED]: "🚫",
-  [NotificationType.REMINDER]: "⏰",
-  [NotificationType.FEEDBACK_REQUEST]: "💬",
-};
-
-// Notification color mapping
-const notificationColors: Record<NotificationType, string> = {
-  [NotificationType.BOOKING_REQUEST]: "bg-blue-50 border-blue-200",
-  [NotificationType.SESSION_CONFIRMED]: "bg-green-50 border-green-200",
-  [NotificationType.SESSION_REJECTED]: "bg-red-50 border-red-200",
-  [NotificationType.SESSION_CANCELLED]: "bg-orange-50 border-orange-200",
-  [NotificationType.REMINDER]: "bg-yellow-50 border-yellow-200",
-  [NotificationType.FEEDBACK_REQUEST]: "bg-purple-50 border-purple-200",
-};
-
 export default function NotificationDropdown() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
@@ -108,10 +88,15 @@ export default function NotificationDropdown() {
             router.push("/tutor/requests");
             break;
             
+          case NotificationType.NEGOTIATION_PROPOSAL:
+            // Student receives this -> go to my sessions to view proposal
+            router.push("/student/my-sessions");
+            break;
+            
           case NotificationType.SESSION_CONFIRMED:
             // Could be student or tutor -> check current path
             if (window.location.pathname.startsWith("/tutor")) {
-              router.push("/tutor/schedule");
+              router.push("/tutor/sessions");
             } else {
               router.push("/student/my-sessions");
             }
@@ -121,7 +106,7 @@ export default function NotificationDropdown() {
           case NotificationType.SESSION_REJECTED:
             // Navigate to sessions list
             if (window.location.pathname.startsWith("/tutor")) {
-              router.push("/tutor/schedule");
+              router.push("/tutor/sessions");
             } else {
               router.push("/student/my-sessions");
             }
@@ -130,7 +115,7 @@ export default function NotificationDropdown() {
           case NotificationType.REMINDER:
             // Navigate to today's sessions
             if (window.location.pathname.startsWith("/tutor")) {
-              router.push("/tutor/sessions-today");
+              router.push("/tutor/sessions");
             } else {
               router.push("/student/my-sessions");
             }
@@ -199,17 +184,18 @@ export default function NotificationDropdown() {
           />
         </svg>
 
-        {/* Unread Badge */}
+        {/* Unread Red Dot */}
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+          <span className="absolute top-0 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
         )}
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-lg shadow-xl border border-black/10 z-50 max-h-[32rem] overflow-hidden flex flex-col">
+        <div 
+          className="absolute right-0 mt-2 bg-white rounded-lg shadow-xl border border-black/10 z-50 max-h-[32rem] overflow-hidden flex flex-col"
+          style={{ width: "320px" }}
+        >
           {/* Header */}
           <div className="px-4 py-3 border-b border-black/5 flex items-center justify-between bg-soft-white-blue">
             <h3 className="text-sm font-semibold text-dark-blue">Notifications</h3>
@@ -248,15 +234,6 @@ export default function NotificationDropdown() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Icon */}
-                      <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg border ${
-                          notificationColors[notification.type]
-                        }`}
-                      >
-                        {notificationIcons[notification.type]}
-                      </div>
-
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">

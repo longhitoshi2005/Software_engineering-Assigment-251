@@ -90,7 +90,7 @@ export default function DynamicNavbar() {
       basePath: "/tutor/dashboard",
       children: [
         { label: "Overview", path: "/tutor/dashboard" },
-        { label: "Sessions Today", path: "/tutor/sessions-today" },
+        { label: "Sessions", path: "/tutor/sessions" },
       ],
     });
 

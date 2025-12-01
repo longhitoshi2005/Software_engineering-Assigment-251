@@ -49,6 +49,9 @@ def main():
     # Step 4: Seed test data (sessions, feedback, progress, availability)
     run_script("seed_test_data.py")
     
+    # Step 5: Seed notifications
+    run_script("seed_notifications.py")
+    
     print("\n" + "="*60)
     print("🎉 ALL SEED OPERATIONS COMPLETED SUCCESSFULLY!")
     print("="*60)
@@ -57,6 +60,7 @@ def main():
     print("   ✅ Master data seeded (Faculties, Majors, Courses)")
     print("   ✅ Users & profiles seeded")
     print("   ✅ Test data seeded (Sessions, Feedback, Progress, Availability)")
+    print("   ✅ Notifications seeded")
     print("\n🔑 Test Accounts:")
     print("   - head.cse / 123 (Admin/Dept Chair)")
     print("   - tuan.pham / 123 (Lecturer Tutor)")

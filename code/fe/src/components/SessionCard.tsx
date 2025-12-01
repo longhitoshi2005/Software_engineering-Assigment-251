@@ -20,6 +20,7 @@ type Session = {
   student_name: string;
   course_code: string;
   course_name: string;
+  topic?: string | null;
   start_time: string;
   end_time: string;
   mode: string;
@@ -29,9 +30,11 @@ type Session = {
   session_request_type?: string;
   max_capacity?: number;
   is_public?: boolean;
+  is_requester?: boolean;
   current_capacity?: number;
   feedback_status?: "PENDING" | "SUBMITTED" | "SKIPPED" | null;
   proposal?: {
+    new_topic?: string;
     new_start_time?: string;
     new_end_time?: string;
     new_mode?: string;
@@ -171,6 +174,13 @@ export default function SessionCard({
     <article className="bg-soft-white-blue/50 border border-soft-white-blue rounded-lg p-4 flex flex-row gap-4 items-start w-full">
       {/* Column 1: Information */}
       <div className="space-y-2 flex-1 min-w-0">
+        {/* Topic if available */}
+        {session.topic && (
+          <div className="font-semibold text-dark-blue text-sm">
+            {session.topic}
+          </div>
+        )}
+        
         {/* Line 1: Time, Course, Type, Mode, Status */}
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="font-semibold text-dark-blue">
@@ -231,7 +241,7 @@ export default function SessionCard({
             onClick={() => onCancel(session)}
             className="flex-1 h-10 rounded-md bg-white text-red-500 text-sm font-semibold border border-red-200 px-3 py-2 hover:bg-red-50 transition whitespace-nowrap"
           >
-            Cancel
+            {session.is_public ? "Leave" : "Cancel"}
           </button>
         )}
       </div>

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function CoordLayout({
   children,
@@ -83,7 +84,7 @@ export default function CoordLayout({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full mr-8">
+        <div className="hidden md:flex items-center gap-6 h-full">
           {navSections.map((group) => {
             const isActive = activeParent?.label === group.label;
             return (
@@ -148,6 +149,9 @@ export default function CoordLayout({
               </div>
             );
           })}
+
+          {/* Notification Bell */}
+          <NotificationDropdown />
         </div>
       </nav>
 

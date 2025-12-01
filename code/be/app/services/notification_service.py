@@ -79,6 +79,10 @@ class NotificationService:
             title = "New Booking Request"
             message = f"You have a new tutoring session request. {extra_message}"
             
+        elif n_type == NotificationType.NEGOTIATION_PROPOSAL:
+            title = "Session Proposal"
+            message = f"The tutor has proposed changes to your session. {extra_message}"
+            
         elif n_type == NotificationType.SESSION_CONFIRMED:
             title = "Session Confirmed"
             message = f"Your tutoring session has been confirmed. {extra_message}"

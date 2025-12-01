@@ -40,12 +40,14 @@ interface SessionDetailData {
 }
 
 interface ConfirmPayload {
+  topic: string;
   max_capacity: number;
   is_public: boolean;
   final_location_link: string;
 }
 
 interface NegotiatePayload {
+  new_topic: string;
   new_start_time: string;
   new_end_time: string;
   new_mode?: string;
@@ -91,12 +93,14 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
   
   // Form payloads
   const [confirmPayload, setConfirmPayload] = useState<ConfirmPayload>({
+    topic: "",
     max_capacity: 1,
     is_public: false,
     final_location_link: "",
   });
   const [rejectReason, setRejectReason] = useState("");
   const [negotiatePayload, setNegotiatePayload] = useState<NegotiatePayload>({
+    new_topic: "",
     new_start_time: "",
     new_end_time: "",
     new_mode: "ONLINE",
@@ -124,6 +128,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
       const defaultCapacity = data.max_capacity > 1 ? data.max_capacity : 1;
       
       setConfirmPayload({
+        topic: "",
         max_capacity: defaultCapacity,
         is_public: isPublicRequest,
         final_location_link: data.location || "",
@@ -133,6 +138,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
       const localEndTime = toZonedTime(data.end_time, timeZone).toISOString().substring(0, 16);
       
       setNegotiatePayload({
+        new_topic: "",
         new_start_time: localStartTime,
         new_end_time: localEndTime,
         new_mode: data.mode,
@@ -180,8 +186,14 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
   const handleConfirm = async () => {
     if (!detailData) return;
     
+    if (!confirmPayload.topic.trim()) {
+      alert("Please enter a topic for this session.");
+      return;
+    }
+    
     const isPublicRequest = detailData.session_request_type === "PUBLIC_GROUP";
     const finalPayload: ConfirmPayload = {
+      topic: confirmPayload.topic,
       final_location_link: detailData.location || "",
       max_capacity: isPublicRequest ? Number(confirmPayload.max_capacity) : detailData.max_capacity,
       is_public: isPublicRequest,
@@ -413,6 +425,19 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
                     <p><strong>Type:</strong> {getTypeLabel(detailData.session_request_type)}</p>
                   </div>
                   
+                  {/* Session Topic - required for confirmation */}
+                  <label style={labelStyle}>
+                    Session Topic: <span style={{ color: 'red' }}>*</span>
+                    <input
+                      type="text"
+                      value={confirmPayload.topic}
+                      onChange={(e) => setConfirmPayload({ ...confirmPayload, topic: e.target.value })}
+                      placeholder="e.g., Introduction to Design Patterns"
+                      required
+                      style={inputStyle}
+                    />
+                  </label>
+                  
                   {/* Max Capacity - editable only for PUBLIC_GROUP */}
                   <label style={labelStyle}>
                     Max Capacity: <span style={{ fontStyle: 'italic', color: '#666', fontSize:'small', fontWeight:'lighter'}}>(student requested {detailData.max_capacity})</span>
@@ -458,6 +483,18 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
               <div>
                 <h2>Propose Counter-Offer</h2>
                 <form onSubmit={(e) => { e.preventDefault(); handleNegotiate(); }}>
+                  <label style={labelStyle}>
+                    Session Topic/Name (Required):
+                    <input
+                      type="text"
+                      value={negotiatePayload.new_topic}
+                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_topic: e.target.value })}
+                      required
+                      style={inputStyle}
+                      placeholder="e.g., Introduction to React Hooks"
+                    />
+                  </label>
+                  
                   <label style={labelStyle}>
                     New Start Time:
                     <input

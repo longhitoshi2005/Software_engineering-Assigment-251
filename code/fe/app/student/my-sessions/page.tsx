@@ -25,6 +25,7 @@ type Session = {
   student_name: string;
   course_code: string;
   course_name: string;
+  topic?: string | null;
   start_time: string;
   end_time: string;
   mode: string;
@@ -34,7 +35,9 @@ type Session = {
   session_request_type?: string;
   max_capacity?: number;
   is_public?: boolean;
+  is_requester?: boolean;
   proposal?: {
+    new_topic?: string;
     new_start_time?: string;
     new_end_time?: string;
     new_mode?: string;
@@ -59,6 +62,13 @@ export default function MySessionsPage() {
   
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filter states
+  const [searchText, setSearchText] = useState("");
+  const [filterCourse, setFilterCourse] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [filterMode, setFilterMode] = useState("all");
 
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -96,13 +106,47 @@ export default function MySessionsPage() {
     }
   };
 
+  // Apply filters
+  const applyFilters = (sessionList: Session[]) => {
+    return sessionList.filter(sess => {
+      // Search filter (session name/topic, tutor name)
+      if (searchText) {
+        const search = searchText.toLowerCase();
+        const matchesTopic = sess.topic?.toLowerCase().includes(search);
+        const matchesTutor = sess.tutor_name.toLowerCase().includes(search);
+        if (!matchesTopic && !matchesTutor) return false;
+      }
+
+      // Course filter
+      if (filterCourse !== "all" && sess.course_code !== filterCourse) return false;
+
+      // Status filter
+      if (filterStatus !== "all" && sess.status !== filterStatus) return false;
+
+      // Type filter
+      if (filterType !== "all") {
+        if (filterType === "ONE_ON_ONE" && sess.session_request_type !== "ONE_ON_ONE") return false;
+        if (filterType === "PUBLIC_GROUP" && sess.session_request_type !== "PUBLIC_GROUP") return false;
+        if (filterType === "PRIVATE_GROUP" && sess.session_request_type !== "PRIVATE_GROUP") return false;
+      }
+
+      // Mode filter
+      if (filterMode !== "all" && sess.mode !== filterMode) return false;
+
+      return true;
+    });
+  };
+
+  // Get unique courses for filter dropdown
+  const uniqueCourses = Array.from(new Set(sessions.map(s => s.course_code)));
+
   // Filter sessions
-  const upcomingSessions = sessions.filter(s => 
+  const upcomingSessions = applyFilters(sessions.filter(s => 
     s.status === "WAITING_FOR_TUTOR" || 
     s.status === "WAITING_FOR_STUDENT" || 
     s.status === "CONFIRMED"
-  );
-  const completedSessions = sessions.filter(s => s.status === "COMPLETED");
+  ));
+  const completedSessions = applyFilters(sessions.filter(s => s.status === "COMPLETED"));
 
   const getModeLabel = (mode: string) => {
     if (mode === 'ONLINE') return 'Online';
@@ -190,6 +234,11 @@ export default function MySessionsPage() {
   };
 
   const handleCancel = async (sess: Session) => {
+    // For public sessions, handle differently based on requester status
+    if (sess.is_public) {
+      return handleLeavePublicSession(sess);
+    }
+    
     // Check if within 2 hours
     const hoursUntil = differenceInHours(parseUTC(sess.start_time), new Date());
     
@@ -224,6 +273,51 @@ export default function MySessionsPage() {
     } catch (error) {
       console.error("Error cancelling:", error);
       await swalError("Failed to cancel", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
+
+  const handleLeavePublicSession = async (sess: Session) => {
+    const hoursUntil = differenceInHours(parseUTC(sess.start_time), new Date());
+    
+    let title = "Leave Session";
+    let message = "Are you sure you want to leave this public session?";
+    
+    if (hoursUntil < 2) {
+      title = "Late Leave Warning";
+      message = "⚠️ You are leaving less than 2 hours before the session. Your participation will be marked as CANCELLED (you will remain in the session list but marked as cancelled). Are you sure?";
+    }
+
+    const ok = await swalConfirm(title, message, { 
+      confirmText: "Yes, leave", 
+      cancelText: "Stay in session" 
+    });
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/leave`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Failed to leave session" }));
+        throw new Error(errorData.detail || "Failed to leave session");
+      }
+
+      const data = await response.json();
+      
+      if (data.late_leave) {
+        await swalSuccess("Marked as Cancelled", "Your participation has been marked as cancelled due to leaving less than 2 hours before the session. You remain in the session list.");
+      } else if (data.session_cancelled) {
+        await swalSuccess("Session Cancelled", "You have left the session. All students have left, so the session has been cancelled.");
+      } else {
+        await swalSuccess("Left Session", "You have successfully left the public session.");
+      }
+      
+      loadSessions();
+    } catch (error) {
+      console.error("Error leaving session:", error);
+      await swalError("Failed to leave", error instanceof Error ? error.message : "Please try again.");
     }
   };
 
@@ -263,9 +357,21 @@ export default function MySessionsPage() {
     if (!proposalSession) return;
 
     try {
+      // When accepting a proposal, we need to provide the final session details
+      const confirmDetails = {
+        topic: proposalSession.proposal?.new_topic || proposalSession.topic || "Session",
+        max_capacity: proposalSession.proposal?.new_max_capacity || proposalSession.max_capacity || 1,
+        is_public: proposalSession.proposal?.new_is_public ?? proposalSession.is_public ?? false,
+        final_location_link: proposalSession.proposal?.new_location || proposalSession.location || null
+      };
+
       const response = await fetch(`http://localhost:8000/sessions/${proposalSession.id}/negotiate/accept`, {
         method: "PUT",
         credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(confirmDetails),
       });
 
       if (!response.ok) throw new Error("Failed to accept proposal");
@@ -358,6 +464,99 @@ export default function MySessionsPage() {
           • Completed sessions require feedback submission.
         </p>
       </header>
+
+      {/* Filters */}
+      <section className="bg-white border border-black/5 rounded-xl shadow-sm p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-dark-blue">Filters</h3>
+        
+        <div className="space-y-3">
+          {/* Search and Course */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-3">
+              <input
+                type="text"
+                placeholder="Search by session name or tutor name..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-heavy-blue"
+              />
+            </div>
+
+            <div>
+              <select
+                value={filterCourse}
+                onChange={(e) => setFilterCourse(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-heavy-blue"
+              >
+                <option value="all">All Courses</option>
+                {uniqueCourses.map(course => (
+                  <option key={course} value={course}>{course}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Status, Mode, Type, Clear */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-heavy-blue"
+              >
+                <option value="all">All Status</option>
+                <option value="WAITING_FOR_TUTOR">Waiting for Tutor</option>
+                <option value="WAITING_FOR_STUDENT">Waiting for Student</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={filterMode}
+                onChange={(e) => setFilterMode(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-heavy-blue"
+              >
+                <option value="all">All Modes</option>
+                <option value="ONLINE">Online</option>
+                <option value="CAMPUS_1">Campus 1</option>
+                <option value="CAMPUS_2">Campus 2</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-light-heavy-blue"
+              >
+                <option value="all">All Types</option>
+                <option value="ONE_ON_ONE">One-on-One</option>
+                <option value="PUBLIC_GROUP">Public Group</option>
+                <option value="PRIVATE_GROUP">Private Group</option>
+              </select>
+            </div>
+
+            <div>
+              <button
+                onClick={() => {
+                  setSearchText("");
+                  setFilterCourse("all");
+                  setFilterStatus("all");
+                  setFilterType("all");
+                  setFilterMode("all");
+                }}
+                className="w-full px-3 py-2 text-sm bg-soft-white-blue text-dark-blue rounded-lg hover:bg-soft-white-blue/70 transition"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Upcoming & Pending */}
       <section className="bg-white border border-black/5 rounded-xl shadow-sm p-4 md:p-6 space-y-4">

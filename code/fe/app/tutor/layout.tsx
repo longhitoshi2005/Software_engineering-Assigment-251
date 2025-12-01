@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function TutorLayout({
   children,
@@ -56,7 +57,7 @@ function TutorLayoutContent({
       basePath: "/tutor/dashboard",
       children: [
         { label: "Overview", path: "/tutor/dashboard" },
-        { label: "Sessions Today", path: "/tutor/sessions-today" },
+        { label: "Sessions", path: "/tutor/sessions" },
       ],
     },
     {
@@ -117,7 +118,7 @@ function TutorLayoutContent({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full mr-8">
+        <div className="hidden md:flex items-center gap-6 h-full">
           {navSections.map((group) => {
             const isActive = activeParent?.label === group.label;
             return (
@@ -182,6 +183,9 @@ function TutorLayoutContent({
               </div>
             );
           })}
+
+          {/* Notification Bell */}
+          <NotificationDropdown />
         </div>
       </nav>
 

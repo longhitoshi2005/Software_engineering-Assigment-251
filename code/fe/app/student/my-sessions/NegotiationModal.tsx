@@ -11,6 +11,7 @@ type Session = {
   student_name: string;
   course_code: string;
   course_name: string;
+  topic?: string | null;
   start_time: string;
   end_time: string;
   mode: string;
@@ -22,6 +23,7 @@ type Session = {
   is_public?: boolean;
   current_capacity?: number;
   proposal?: {
+    new_topic?: string;
     new_start_time?: string;
     new_end_time?: string;
     new_mode?: string;
@@ -87,6 +89,12 @@ export default function NegotiationModal({
               Your Original Request
             </p>
             <div className="space-y-2">
+              {session.topic && (
+                <div>
+                  <p className="text-[0.7rem] text-black/50">Topic</p>
+                  <p className="text-sm font-medium">{session.topic}</p>
+                </div>
+              )}
               <div>
                 <p className="text-[0.7rem] text-black/50">Time</p>
                 <p className="text-sm font-medium">
@@ -113,6 +121,12 @@ export default function NegotiationModal({
               Tutor&apos;s Proposal
             </p>
             <div className="space-y-2">
+              {session.proposal.new_topic && (
+                <div>
+                  <p className="text-[0.7rem] text-blue-600">Topic</p>
+                  <p className="text-sm font-medium">{session.proposal.new_topic}</p>
+                </div>
+              )}
               {session.proposal.new_start_time && (
                 <div>
                   <p className="text-[0.7rem] text-blue-600">Time</p>

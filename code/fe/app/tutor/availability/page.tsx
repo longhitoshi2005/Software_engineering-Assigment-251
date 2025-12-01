@@ -230,7 +230,7 @@ export default function TutorAvailabilityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -357,7 +357,7 @@ export default function TutorAvailabilityPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Start Time (24h)
+                    Start Time
                   </label>
                   <input
                     type="time"
@@ -368,7 +368,7 @@ export default function TutorAvailabilityPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    End Time (24h)
+                    End Time
                   </label>
                   <input
                     type="time"

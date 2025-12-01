@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function DeptLayout({
   children,
@@ -112,7 +113,7 @@ export default function DeptLayout({
         </div>
 
         {/* Desktop Menus */}
-        <div className="hidden md:flex items-center gap-6 h-full mr-1">
+        <div className="hidden md:flex items-center gap-6 h-full">
           {navSections.map((group) => {
             const active = isGroupActive(group.basePath, group.children);
             return (
@@ -180,6 +181,9 @@ export default function DeptLayout({
               </div>
             );
           })}
+
+          {/* Notification Bell */}
+          <NotificationDropdown />
         </div>
       </nav>
 
