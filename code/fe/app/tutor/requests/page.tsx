@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import RequestCard from "@/components/TutorReviewRequest";
+import { BASE_API_URL } from "@/config/env";
 
 // --- Mini Data Interface ---
 interface SessionMiniData {
@@ -31,7 +32,7 @@ export default function TutorRequestsPage() {
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/sessions/?role=tutor", {
+      const response = await fetch(`${BASE_API_URL}/sessions/?role=tutor`, {
         credentials: "include",
       });
 
@@ -60,7 +61,7 @@ export default function TutorRequestsPage() {
 
     try {
       // Get all sessions (including confirmed ones)
-      const response = await fetch("http://localhost:8000/sessions/?role=tutor", {
+      const response = await fetch(`${BASE_API_URL}/sessions/?role=tutor`, {
         credentials: "include",
       });
 
@@ -72,7 +73,7 @@ export default function TutorRequestsPage() {
       const confirmedSessions = allSessions.filter(s => s.status === "CONFIRMED");
 
       // Get available slots
-      const availabilityResponse = await fetch("http://localhost:8000/availability/me", {
+      const availabilityResponse = await fetch(`${BASE_API_URL}/availability/me`, {
         credentials: "include",
       });
       
@@ -113,7 +114,7 @@ export default function TutorRequestsPage() {
             : "I'm no longer available at the requested time slot (availability removed)";
           
           try {
-            const rejectResponse = await fetch(`http://localhost:8000/sessions/${request.id}/reject`, {
+            const rejectResponse = await fetch(`${BASE_API_URL}/sessions/${request.id}/reject`, {
               method: "PUT",
               credentials: "include",
               headers: { "Content-Type": "application/json" },

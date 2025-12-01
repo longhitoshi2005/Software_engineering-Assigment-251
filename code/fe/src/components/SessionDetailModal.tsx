@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { parseUTC } from "@/lib/dateUtils";
+import { BASE_API_URL } from "@/config/env";
 
 interface Student {
   id: string;
@@ -86,7 +87,7 @@ export default function SessionDetailModal({
   const handleParticipationChange = async (studentId: string, newStatus: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/sessions/${session.id}/students/${studentId}/participation`,
+        `${BASE_API_URL}/sessions/${session.id}/students/${studentId}/participation`,
         {
           method: "PATCH",
           headers: {

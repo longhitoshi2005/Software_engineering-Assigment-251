@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { parseUTC } from "@/lib/dateUtils";
+import { BASE_API_URL } from "@/config/env";
 
 // --- Mini Data from List ---
 interface SessionMiniData {
@@ -114,7 +115,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
   const fetchDetailData = async () => {
     setLoadingDetail(true);
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sessionMiniData.id}`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionMiniData.id}`, {
         credentials: "include",
       });
       
@@ -205,7 +206,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
     }
     
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sessionMiniData.id}/confirm`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionMiniData.id}/confirm`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -228,7 +229,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
 
   const handleReject = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sessionMiniData.id}/reject`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionMiniData.id}/reject`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -252,7 +253,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
     }
     
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sessionMiniData.id}/negotiate`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionMiniData.id}/negotiate`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

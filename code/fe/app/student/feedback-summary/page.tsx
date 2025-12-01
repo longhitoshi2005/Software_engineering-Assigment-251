@@ -6,6 +6,7 @@ import { swalError } from "@/lib/swal";
 import { format, parseISO } from "date-fns";
 import { parseUTC } from "@/lib/dateUtils";
 import FeedbackModal from "@/components/FeedbackModal";
+import { BASE_API_URL } from "@/config/env";
 
 type FeedbackItem = {
   id: string;
@@ -37,7 +38,7 @@ export default function FeedbackSummaryPage() {
   const loadFeedback = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/feedback/my-feedbacks", {
+      const response = await fetch(`${BASE_API_URL}/feedback/my-feedbacks`, {
         credentials: "include",
       });
 

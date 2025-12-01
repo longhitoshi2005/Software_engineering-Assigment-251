@@ -8,8 +8,7 @@ import Swal from "sweetalert2";
 import BackButton from "@/components/BackButton";
 import { LocationModeLabels } from "@/types/location";
 import { formatDateTime, formatTime } from "@/lib/dateUtils";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import {BASE_API_URL} from "@/config/env"
 
 interface TeachingSubject {
   course_code: string;
@@ -91,7 +90,7 @@ export default function TutorProfilePage() {
 
       try {
         // Fetch tutor profile
-        const profileResponse = await fetch(`${API_BASE_URL}/tutors/${id}`, {
+        const profileResponse = await fetch(`${BASE_API_URL}/tutors/${id}`, {
           credentials: "include",
         });
 
@@ -104,7 +103,7 @@ export default function TutorProfilePage() {
 
         // Fetch availability
         try {
-          const availResponse = await fetch(`${API_BASE_URL}/availability/tutor/${id}`, {
+          const availResponse = await fetch(`${BASE_API_URL}/availability/tutor/${id}`, {
             credentials: "include",
           });
 
@@ -119,7 +118,7 @@ export default function TutorProfilePage() {
         // Fetch public sessions for this tutor
         try {
           const sessionsResponse = await fetch(
-            `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(profileData.full_name)}&limit=10`,
+            `${BASE_API_URL}/sessions/public?tutor_name=${encodeURIComponent(profileData.full_name)}&limit=10`,
             { credentials: "include" }
           );
 
@@ -150,7 +149,7 @@ export default function TutorProfilePage() {
 
   const handleJoinSession = async (sessionId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/join`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionId}/join`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -170,7 +169,7 @@ export default function TutorProfilePage() {
       // Refresh public sessions
       if (tutor) {
         const sessionsResponse = await fetch(
-          `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
+          `${BASE_API_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
           { credentials: "include" }
         );
         if (sessionsResponse.ok) {
@@ -201,7 +200,7 @@ export default function TutorProfilePage() {
 
       if (!result.isConfirmed) return;
 
-      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/leave`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionId}/leave`, {
         method: "POST",
         credentials: "include",
       });
@@ -220,7 +219,7 @@ export default function TutorProfilePage() {
       // Refresh public sessions
       if (tutor) {
         const sessionsResponse = await fetch(
-          `${API_BASE_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
+          `${BASE_API_URL}/sessions/public?tutor_name=${encodeURIComponent(tutor.full_name)}&limit=10`,
           { credentials: "include" }
         );
         if (sessionsResponse.ok) {

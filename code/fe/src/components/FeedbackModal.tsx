@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { swalError, swalSuccess } from "@/lib/swal";
+import { BASE_API_URL } from "@/config/env";
 
 type FeedbackModalProps = {
   sessionId: string;
@@ -43,7 +44,7 @@ export default function FeedbackModal({ sessionId, onClose, onSaved }: FeedbackM
   const loadFeedback = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/feedback/session/${sessionId}`, {
+      const response = await fetch(`${BASE_API_URL}/feedback/session/${sessionId}`, {
         credentials: "include",
       });
 
@@ -84,7 +85,7 @@ export default function FeedbackModal({ sessionId, onClose, onSaved }: FeedbackM
 
     try {
       setSaving(true);
-      const response = await fetch(`http://localhost:8000/feedback/session/${sessionId}`, {
+      const response = await fetch(`${BASE_API_URL}/feedback/session/${sessionId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

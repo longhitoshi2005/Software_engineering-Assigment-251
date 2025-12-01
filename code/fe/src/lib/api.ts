@@ -1,9 +1,4 @@
-/**
- * API Client configuration
- * Base URL for backend API (FastAPI running in Docker)
- */
-
-const API_BASE_URL = 'http://localhost:8000';
+import { BASE_API_URL } from "@/config/env";
 
 /**
  * API client with common configuration
@@ -13,7 +8,7 @@ export const api = {
    * Make a GET request
    */
   get: async (endpoint: string, options?: RequestInit) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${BASE_API_URL}${endpoint}`, {
       method: 'GET',
       credentials: 'include', // Include cookies
       headers: {
@@ -39,7 +34,7 @@ export const api = {
    * Make a POST request
    */
   post: async (endpoint: string, data?: any, options?: RequestInit) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${BASE_API_URL}${endpoint}`, {
       method: 'POST',
       credentials: 'include', // Include cookies
       headers: {
@@ -62,7 +57,7 @@ export const api = {
    * Make a PUT request
    */
   put: async (endpoint: string, data?: any, options?: RequestInit) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${BASE_API_URL}${endpoint}`, {
       method: 'PUT',
       credentials: 'include', // Include cookies
       headers: {
@@ -85,7 +80,7 @@ export const api = {
    * Make a DELETE request
    */
   delete: async (endpoint: string, options?: RequestInit) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${BASE_API_URL}${endpoint}`, {
       method: 'DELETE',
       credentials: 'include', // Include cookies
       headers: {

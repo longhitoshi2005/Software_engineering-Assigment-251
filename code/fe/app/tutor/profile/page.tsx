@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { swalSuccess, swalError, swalConfirm } from "@/lib/swal";
 import api from "@/lib/api";
+import { BASE_API_URL } from "@/config/env";
 
 // State Machine Types
 type ViewMode = "VIEW_MODE" | "EDIT_MODE";
@@ -198,7 +199,7 @@ const TutorProfilePage: React.FC = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("http://localhost:8000/tutors/me/avatar", {
+      const response = await fetch(`${BASE_API_URL}/tutors/me/avatar`, {
         method: "POST",
         credentials: "include",
         body: formData,

@@ -7,8 +7,8 @@ import Swal from "sweetalert2";
 import { TutorSearchResult, TutorSearchRequest } from "@/types/tutorSearch";
 import { LocationMode, LocationModeLabels } from "@/types/location";
 import { formatTimeRange } from "@/lib/dateUtils";
+import {BASE_API_URL} from "@/config/env"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface PublicSession {
   id: string;
@@ -127,7 +127,7 @@ export default function FindTutorPage() {
       if (tagsFilter) searchParams.tags = tagsFilter.split(",").map(t => t.trim()).filter(Boolean);
       if (modeFilter) searchParams.mode = modeFilter as LocationMode;
 
-      const response = await fetch(`${API_BASE_URL}/tutors/search`, {
+      const response = await fetch(`${BASE_API_URL}/tutors/search`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -165,7 +165,7 @@ export default function FindTutorPage() {
       if (departmentFilter) params.append("tutor_name", departmentFilter);
       params.append("limit", "20");
 
-      const response = await fetch(`${API_BASE_URL}/sessions/public?${params.toString()}`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/public?${params.toString()}`, {
         credentials: "include",
       });
 
@@ -203,7 +203,7 @@ export default function FindTutorPage() {
 
   const handleJoinSession = async (sessionId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/join`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionId}/join`, {
         method: "POST",
         credentials: "include",
       });
@@ -244,7 +244,7 @@ export default function FindTutorPage() {
 
       if (!result.isConfirmed) return;
 
-      const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/leave`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sessionId}/leave`, {
         method: "POST",
         credentials: "include",
       });

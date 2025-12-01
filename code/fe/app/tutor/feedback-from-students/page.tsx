@@ -1,5 +1,6 @@
 "use client";
 
+import { BASE_API_URL } from "@/config/env";
 import { useMemo, useState, useEffect } from "react";
 
 // --- Types ---
@@ -53,7 +54,7 @@ export default function TutorFeedbackFromStudentsPage() {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch("http://localhost:8000/feedback/received", {
+        const response = await fetch(`${BASE_API_URL}/feedback/received`, {
           credentials: "include",
         });
 

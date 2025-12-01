@@ -10,6 +10,7 @@ import { TutorSearchResult } from "@/types/tutorSearch";
 import { BookingRequest, SessionRequestType } from "@/types/session";
 import { AvailabilitySlot } from "@/types/availability";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
+import { BASE_API_URL } from "@/config/env";
 
 // Constants
 const MINIMUM_DURATION_MINUTES = 30;
@@ -50,7 +51,7 @@ function BookSessionContent() {
         setLoading(true);
 
         // Fetch current user info
-        const userRes = await fetch("http://localhost:8000/users/me", {
+        const userRes = await fetch(`${BASE_API_URL}/users/me`, {
           credentials: "include",
         });
 
@@ -60,7 +61,7 @@ function BookSessionContent() {
         setCurrentUser(userData);
 
         // Fetch tutor info
-        const tutorRes = await fetch(`http://localhost:8000/tutors/${tutorId}`, {
+        const tutorRes = await fetch(`${BASE_API_URL}/tutors/${tutorId}`, {
           credentials: "include",
         });
 
@@ -70,7 +71,7 @@ function BookSessionContent() {
         setTutor(tutorData);
 
         // Fetch available slots
-        const slotsRes = await fetch(`http://localhost:8000/availability/${tutorId}`, {
+        const slotsRes = await fetch(`${BASE_API_URL}/availability/${tutorId}`, {
           credentials: "include",
         });
 
@@ -208,7 +209,7 @@ function BookSessionContent() {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/sessions/", {
+      const response = await fetch(`${BASE_API_URL}/sessions/`, {
         method: "POST",
         credentials: "include",
         headers: {

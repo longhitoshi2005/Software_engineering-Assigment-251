@@ -6,6 +6,7 @@ import { LocationMode, LocationModeLabels } from "@/types/location";
 import { AvailabilitySlot } from "@/types/availability";
 import { formatDateWithYear, formatTime, createLocalDateTime } from "@/lib/dateUtils";
 import { Trash2, Plus, Calendar, Clock } from "lucide-react";
+import { BASE_API_URL } from "@/config/env";
 
 export default function TutorAvailabilityPage() {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
@@ -26,7 +27,7 @@ export default function TutorAvailabilityPage() {
     try {
       setLoading(true);
       
-      const tutorRes = await fetch("http://localhost:8000/tutors/me", {
+      const tutorRes = await fetch(`${BASE_API_URL}/tutors/me`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -49,7 +50,7 @@ export default function TutorAvailabilityPage() {
       
       const tutorData = await tutorRes.json();
       
-      const availRes = await fetch(`http://localhost:8000/availability/${tutorData.id}`, {
+      const availRes = await fetch(`${BASE_API_URL}/availability/${tutorData.id}`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -107,7 +108,7 @@ export default function TutorAvailabilityPage() {
       const startDateTime = createLocalDateTime(newDate, newStart);
       const endDateTime = createLocalDateTime(newDate, newEnd);
 
-      const response = await fetch("http://localhost:8000/availability/", {
+      const response = await fetch(`${BASE_API_URL}/availability/`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -166,7 +167,7 @@ export default function TutorAvailabilityPage() {
     if (!result.isConfirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/availability/${slotId}`, {
+      const response = await fetch(`${BASE_API_URL}/availability/${slotId}`, {
         method: "DELETE",
         credentials: "include",
       });

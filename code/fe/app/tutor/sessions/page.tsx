@@ -5,6 +5,7 @@ import { format, startOfDay, endOfDay, parseISO } from "date-fns";
 import TutorSessionCard from "@/components/TutorSessionCard";
 import SessionDetailModal from "@/components/SessionDetailModal";
 import TutorSessionCalendar from "@/components/TutorSessionCalendar";
+import { BASE_API_URL } from "@/config/env";
 
 interface Student {
   id: string;
@@ -44,7 +45,7 @@ export default function TutorSessionsTodayPage() {
       try {
         setLoading(true);
         const response = await fetch(
-          "http://localhost:8000/sessions/?role=tutor",
+          `${BASE_API_URL}/sessions/?role=tutor`,
           {
             credentials: "include",
           }
@@ -100,7 +101,7 @@ export default function TutorSessionsTodayPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/sessions/${selectedSession.id}/location`,
+        `${BASE_API_URL}/sessions/${selectedSession.id}/location`,
         {
           method: "PATCH",
           headers: {

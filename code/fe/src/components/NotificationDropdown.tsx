@@ -4,8 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { NotificationResponse, NotificationType } from "@/types/notification";
 import { formatTimeAgo } from "@/lib/dateUtils";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import {BASE_API_URL} from "@/config/env";
 
 export default function NotificationDropdown() {
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function NotificationDropdown() {
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/notifications/`, {
+      const response = await fetch(`${BASE_API_URL}/notifications/`, {
         credentials: "include",
       });
 
@@ -67,7 +66,7 @@ export default function NotificationDropdown() {
     try {
       // Mark as read if unread
       if (!notification.is_read) {
-        await fetch(`${API_BASE_URL}/notifications/${notification.id}/read`, {
+        await fetch(`${BASE_API_URL}/notifications/${notification.id}/read`, {
           method: "PUT",
           credentials: "include",
         });
@@ -145,7 +144,7 @@ export default function NotificationDropdown() {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
+      const response = await fetch(`${BASE_API_URL}/notifications/mark-all-read`, {
         method: "PUT",
         credentials: "include",
       });

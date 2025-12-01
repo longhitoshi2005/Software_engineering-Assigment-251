@@ -8,6 +8,7 @@ import { parseUTC } from "@/lib/dateUtils";
 import SessionCard from "@/components/SessionCard";
 import NegotiationModal from "./NegotiationModal";
 import FeedbackModal from "@/components/FeedbackModal";
+import { BASE_API_URL } from "@/config/env";
 
 type SessionStatus =
   | "WAITING_FOR_TUTOR"
@@ -90,7 +91,7 @@ export default function MySessionsPage() {
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/sessions/?role=student", {
+      const response = await fetch(`${BASE_API_URL}/sessions/?role=student`, {
         credentials: "include",
       });
 
@@ -169,7 +170,7 @@ export default function MySessionsPage() {
 
     // Load available slots for this tutor
     try {
-      const response = await fetch(`http://localhost:8000/availability/${sess.tutor_id}`, {
+      const response = await fetch(`${BASE_API_URL}/availability/${sess.tutor_id}`, {
         credentials: "include",
       });
 
@@ -204,7 +205,7 @@ export default function MySessionsPage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${rescheduleSession.id}/negotiate`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${rescheduleSession.id}/negotiate`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -254,7 +255,7 @@ export default function MySessionsPage() {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/cancel`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sess.id}/cancel`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -294,7 +295,7 @@ export default function MySessionsPage() {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/leave`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sess.id}/leave`, {
         method: "POST",
         credentials: "include",
       });
@@ -331,7 +332,7 @@ export default function MySessionsPage() {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${sess.id}/cancel`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${sess.id}/cancel`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -365,7 +366,7 @@ export default function MySessionsPage() {
         final_location_link: proposalSession.proposal?.new_location || proposalSession.location || null
       };
 
-      const response = await fetch(`http://localhost:8000/sessions/${proposalSession.id}/negotiate/accept`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${proposalSession.id}/negotiate/accept`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -397,7 +398,7 @@ export default function MySessionsPage() {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/sessions/${proposalSession.id}/negotiate/reject`, {
+      const response = await fetch(`${BASE_API_URL}/sessions/${proposalSession.id}/negotiate/reject`, {
         method: "PUT",
         credentials: "include",
       });
