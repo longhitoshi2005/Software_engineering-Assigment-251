@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-dark-blue: #001E36;
+  --color-dark-light-blue: #082146;
+  --color-medium-blue: #003865;
+  --color-medium-light-blue: #24449A;
+  --color-light-heavy-blue: #0066B9;
+  --color-light-blue: #364D9A;
+  --color-light-light-blue: #009DE0;
+  --color-soft-white-blue: #D3DAEB;
+  /* RGB helper for semi-transparent backgrounds */
+  --color-soft-white-blue-rgb: 211, 218, 235;
+  --color-border-gray: #e5e7eb;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-soft-white-blue {
+    background-color: var(--color-soft-white-blue);
+  }
+  /* semi-transparent helpers (used across the app as -10 / -30 suffixes) */
+  .bg-soft-white-blue-10 {
+    background-color: rgba(var(--color-soft-white-blue-rgb), 0.1);
+  }
+  .bg-soft-white-blue-30 {
+    background-color: rgba(var(--color-soft-white-blue-rgb), 0.3);
+  }
+  .bg-soft-white-blue-60 {
+    background-color: rgba(var(--color-soft-white-blue-rgb), 0.6);
+  }
+  .bg-dark-blue {
+    background-color: var(--color-dark-blue);
+  }
+  .bg-dark-light-blue {
+    background-color: var(--color-dark-light-blue);
+  }
+  .bg-light-heavy-blue {
+    background-color: var(--color-light-heavy-blue);
+  }
+  .bg-light-blue {
+    background-color: var(--color-light-blue);
+  }
+  .bg-light-light-blue {
+    background-color: var(--color-light-light-blue);
+  }
+
+  .text-dark-blue {
+    color: var(--color-dark-blue);
+  }
+  .text-dark-light-blue {
+    color: var(--color-dark-light-blue);
+  }
+  .text-light-heavy-blue {
+    color: var(--color-light-heavy-blue);
+  }
+  .text-light-blue {
+    color: var(--color-light-blue);
+  }
+  .text-light-light-blue {
+    color: var(--color-light-light-blue);
+  }
+  .border-border-gray {
+    border-color: var(--color-border-gray);
+  }
+  .border-soft-white-blue {
+    border-color: var(--color-soft-white-blue);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
+}
