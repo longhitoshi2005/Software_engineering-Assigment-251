@@ -30,6 +30,9 @@ function BookSessionContent() {
   // Slot-based selection
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [sliderRange, setSliderRange] = useState<[number, number]>([0, 0]); // Minutes from slot start
+  const [manualStartTime, setManualStartTime] = useState("");
+  const [manualEndTime, setManualEndTime] = useState("");
+  const [timeInputError, setTimeInputError] = useState("");
 
   // Form states
   const [courseCode, setCourseCode] = useState("");
@@ -121,6 +124,17 @@ function BookSessionContent() {
     // Set slider to full slot range initially
     setSliderRange([0, durationMinutes]);
 
+    // Set manual time inputs
+    const formatTimeForInput = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    setManualStartTime(formatTimeForInput(slotStart));
+    setManualEndTime(formatTimeForInput(slotEnd));
+    setTimeInputError("");
+
     // Update mode to match slot's allowed modes
     if (slot.allowed_modes && slot.allowed_modes.length > 0) {
       setMode(slot.allowed_modes[0]);
@@ -129,7 +143,7 @@ function BookSessionContent() {
 
   // Handle slider change with minimum duration enforcement
   const handleSliderChange = (value: number | number[]) => {
-    if (!Array.isArray(value) || value.length !== 2) return;
+    if (!Array.isArray(value) || value.length !== 2 || !selectedSlot) return;
 
     const [start, end] = value;
     const duration = end - start;
@@ -140,6 +154,95 @@ function BookSessionContent() {
     }
 
     setSliderRange([start, end]);
+
+    // Update manual time inputs to match slider
+    const slotStart = new Date(selectedSlot.start_time + 'Z');
+    const actualStart = new Date(slotStart.getTime() + start * 60 * 1000);
+    const actualEnd = new Date(slotStart.getTime() + end * 60 * 1000);
+
+    const formatTimeForInput = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    setManualStartTime(formatTimeForInput(actualStart));
+    setManualEndTime(formatTimeForInput(actualEnd));
+    setTimeInputError("");
+  };
+
+  // Handle manual time input changes
+  const handleManualTimeChange = (type: 'start' | 'end', value: string) => {
+    if (!selectedSlot) return;
+
+    const slotStart = new Date(selectedSlot.start_time + 'Z');
+    const slotEnd = new Date(selectedSlot.end_time + 'Z');
+
+    try {
+      // Parse the input time
+      const [hours, minutes] = value.split(':').map(Number);
+      const inputDate = new Date(slotStart);
+      inputDate.setHours(hours, minutes, 0, 0);
+
+      // Auto-correct if out of bounds
+      if (type === 'start') {
+        if (inputDate < slotStart) {
+          // Set to slot start
+          const formatTimeForInput = (date: Date) => {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            return `${h}:${m}`;
+          };
+          setManualStartTime(formatTimeForInput(slotStart));
+          return;
+        }
+        setManualStartTime(value);
+      } else {
+        if (inputDate > slotEnd) {
+          // Set to slot end
+          const formatTimeForInput = (date: Date) => {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            return `${h}:${m}`;
+          };
+          setManualEndTime(formatTimeForInput(slotEnd));
+          return;
+        }
+        setManualEndTime(value);
+      }
+
+      // Validate and update slider if both times are valid
+      const startTime = type === 'start' ? value : manualStartTime;
+      const endTime = type === 'end' ? value : manualEndTime;
+
+      if (!startTime || !endTime) return;
+
+      // Parse both times
+      const [startHours, startMinutes] = startTime.split(':').map(Number);
+      const [endHours, endMinutes] = endTime.split(':').map(Number);
+
+      const manualStart = new Date(slotStart);
+      manualStart.setHours(startHours, startMinutes, 0, 0);
+
+      const manualEnd = new Date(slotStart);
+      manualEnd.setHours(endHours, endMinutes, 0, 0);
+
+      const durationMinutes = (manualEnd.getTime() - manualStart.getTime()) / (1000 * 60);
+
+      if (durationMinutes < MINIMUM_DURATION_MINUTES) {
+        setTimeInputError(`Duration must be at least ${MINIMUM_DURATION_MINUTES} minutes`);
+        return;
+      }
+
+      // Valid - update slider
+      const startOffset = (manualStart.getTime() - slotStart.getTime()) / (1000 * 60);
+      const endOffset = (manualEnd.getTime() - slotStart.getTime()) / (1000 * 60);
+
+      setSliderRange([startOffset, endOffset]);
+      setTimeInputError("");
+    } catch {
+      setTimeInputError("Invalid time format");
+    }
   };
 
   // Calculate actual start/end times from slider
@@ -232,12 +335,13 @@ function BookSessionContent() {
       });
 
       router.push("/student/my-sessions");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error submitting booking:", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not submit booking request.";
       await Swal.fire({
         icon: "error",
         title: "Booking Failed",
-        text: error.message || "Could not submit booking request.",
+        text: errorMessage,
       });
     }
   };
@@ -402,7 +506,6 @@ function BookSessionContent() {
               const slotStart = new Date(selectedSlot.start_time + 'Z');
               const slotEnd = new Date(selectedSlot.end_time + 'Z');
               const maxMinutes = (slotEnd.getTime() - slotStart.getTime()) / (1000 * 60);
-              const actualTimes = getActualTimes();
 
               return (
                 <div className="bg-soft-white-blue/40 rounded-lg p-4 border border-soft-white-blue">
@@ -412,11 +515,14 @@ function BookSessionContent() {
                   
                   {/* Time Display */}
                   <div className="flex items-center justify-between mb-4 text-sm">
-                    <div className="text-center">
+                    <div className="text-center flex-1">
                       <p className="text-[10px] text-black/50 mb-1">START</p>
-                      <p className="font-semibold text-dark-blue">
-                        {actualTimes ? formatTime(actualTimes.start.toISOString()) : '--:--'}
-                      </p>
+                      <input
+                        type="time"
+                        value={manualStartTime}
+                        onChange={(e) => handleManualTimeChange('start', e.target.value)}
+                        className="font-semibold text-dark-blue bg-transparent border border-soft-white-blue rounded px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-light-light-blue"
+                      />
                     </div>
                     <div className="text-center px-4">
                       <p className="text-[10px] text-black/50 mb-1">DURATION</p>
@@ -424,13 +530,23 @@ function BookSessionContent() {
                         {sliderRange[1] - sliderRange[0]} min
                       </p>
                     </div>
-                    <div className="text-center">
+                    <div className="text-center flex-1">
                       <p className="text-[10px] text-black/50 mb-1">END</p>
-                      <p className="font-semibold text-dark-blue">
-                        {actualTimes ? formatTime(actualTimes.end.toISOString()) : '--:--'}
-                      </p>
+                      <input
+                        type="time"
+                        value={manualEndTime}
+                        onChange={(e) => handleManualTimeChange('end', e.target.value)}
+                        className="font-semibold text-dark-blue bg-transparent border border-soft-white-blue rounded px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-light-light-blue"
+                      />
                     </div>
                   </div>
+
+                  {/* Error Message */}
+                  {timeInputError && (
+                    <div className="mb-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                      {timeInputError}
+                    </div>
+                  )}
 
                   {/* Slider */}
                   <div className="px-2 py-6">
