@@ -221,7 +221,7 @@ export default function TutorFeedbackFromStudentsPage() {
 
           <select
             value={minScore}
-            onChange={(e) => onAnyFilterChange(setMinScore)(Number(e.target.value) as any)}
+            onChange={(e) => onAnyFilterChange(setMinScore)(Number(e.target.value) as 0 | 1 | 2 | 3 | 4 | 5)}
             className="rounded-lg bg-soft-white-blue border border-soft-white-blue px-3 py-2 text-sm outline-none focus:border-light-light-blue focus:bg-white transition"
           >
             <option value={0}>Score ≥ Any</option>
@@ -234,7 +234,7 @@ export default function TutorFeedbackFromStudentsPage() {
 
           <select
             value={timeWindow}
-            onChange={(e) => onAnyFilterChange(setTimeWindow)(e.target.value as any)}
+            onChange={(e) => onAnyFilterChange(setTimeWindow)(e.target.value as "ALL" | "7D" | "30D" | "THIS_TERM")}
             className="rounded-lg bg-soft-white-blue border border-soft-white-blue px-3 py-2 text-sm outline-none focus:border-light-light-blue focus:bg-white transition"
           >
             <option value="ALL">All time</option>
@@ -253,7 +253,7 @@ export default function TutorFeedbackFromStudentsPage() {
           <div className="flex gap-2">
             <select
               value={sort}
-              onChange={(e) => onAnyFilterChange(setSort)(e.target.value as any)}
+              onChange={(e) => onAnyFilterChange(setSort)(e.target.value as "NEWEST" | "OLDEST" | "HIGHEST" | "LOWEST")}
               className="flex-1 rounded-lg bg-soft-white-blue border border-soft-white-blue px-3 py-2 text-sm outline-none focus:border-light-light-blue focus:bg-white transition"
             >
               <option value="NEWEST">Sort: Newest</option>
