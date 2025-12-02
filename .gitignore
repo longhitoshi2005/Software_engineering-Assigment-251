@@ -18,9 +18,6 @@
 # latexmk output dir
 outdir/
 
-# PDF and other generated artifacts (optional - keep if you want to version PDFs)
-# *.pdf
-
 # OS files
 .DS_Store
 Thumbs.db
