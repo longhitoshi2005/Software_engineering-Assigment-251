@@ -40,6 +40,7 @@ class FeedbackService:
             "tutor_name": tutor_user.full_name,
             "course_code": course.code,
             "course_name": course.name,
+            "topic": session.topic,
             "start_time": session.start_time.isoformat(),
             "end_time": session.end_time.isoformat(),
             "mode": session.mode.value,

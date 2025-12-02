@@ -15,6 +15,7 @@ type FeedbackItem = {
     tutor_name: string;
     course_code: string;
     course_name: string;
+    topic: string | null;
     start_time: string;
     end_time: string;
     mode: string;
@@ -22,6 +23,7 @@ type FeedbackItem = {
   };
   rating: number;
   comment: string | null;
+  status: string;
   created_at: string;
 };
 
@@ -74,6 +76,19 @@ export default function FeedbackSummaryPage() {
     return mode;
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'SUBMITTED':
+        return { label: 'Submitted', color: 'text-green-600 bg-green-50 border-green-200' };
+      case 'PENDING':
+        return { label: 'Pending', color: 'text-yellow-600 bg-yellow-50 border-yellow-200' };
+      case 'SKIPPED':
+        return { label: 'Skipped', color: 'text-red-600 bg-red-50 border-red-200' };
+      default:
+        return { label: status, color: 'text-gray-600 bg-gray-50 border-gray-200' };
+    }
+  };
+
   const sortedList = useMemo(() => {
     if (!sortBy) return feedbackList;
     const list = [...feedbackList];
@@ -82,18 +97,21 @@ export default function FeedbackSummaryPage() {
       let vb: any;
 
       // Handle nested session fields
-      if (sortBy === 'tutor') {
+      if (sortBy === 'topic') {
+        va = a.session.topic || '';
+        vb = b.session.topic || '';
+      } else if (sortBy === 'tutor') {
         va = a.session.tutor_name;
         vb = b.session.tutor_name;
       } else if (sortBy === 'course') {
         va = `${a.session.course_code} - ${a.session.course_name}`;
         vb = `${b.session.course_code} - ${b.session.course_name}`;
-      } else if (sortBy === 'rating') {
-        va = a.rating;
-        vb = b.rating;
-      } else if (sortBy === 'submittedAt') {
-        va = a.created_at;
-        vb = b.created_at;
+      } else if (sortBy === 'time') {
+        va = a.session.start_time;
+        vb = b.session.start_time;
+      } else if (sortBy === 'status') {
+        va = a.status;
+        vb = b.status;
       } else {
         va = (a as any)[sortBy];
         vb = (b as any)[sortBy];
@@ -104,15 +122,10 @@ export default function FeedbackSummaryPage() {
       if (vb === undefined || vb === null) vb = '';
 
       // For dates
-      if (sortBy === 'submittedAt') {
+      if (sortBy === 'time') {
         const da = va ? Date.parse(va) : 0;
         const db = vb ? Date.parse(vb) : 0;
         return da - db;
-      }
-
-      // numeric
-      if (sortBy === 'rating') {
-        return Number(va) - Number(vb);
       }
 
       // string compare
@@ -168,9 +181,9 @@ export default function FeedbackSummaryPage() {
             <thead className="bg-soft-white-blue/60 border-b border-black/5">
               <tr>
                 <th className="px-4 py-3 font-semibold text-dark-blue text-xs">
-                  <button className="flex items-center gap-2" onClick={() => toggleSort('datetime')}>
-                    <span>Session</span>
-                    {sortBy === 'datetime' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  <button className="flex items-center gap-2" onClick={() => toggleSort('topic')}>
+                    <span>Session Name</span>
+                    {sortBy === 'topic' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-dark-blue text-xs">
@@ -186,15 +199,15 @@ export default function FeedbackSummaryPage() {
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-dark-blue text-xs">
-                  <button className="flex items-center gap-2" onClick={() => toggleSort('rating')}>
-                    <span>Rating</span>
-                    {sortBy === 'rating' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  <button className="flex items-center gap-2" onClick={() => toggleSort('time')}>
+                    <span>Time</span>
+                    {sortBy === 'time' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-dark-blue text-xs">
-                  <button className="flex items-center gap-2" onClick={() => toggleSort('submittedAt')}>
-                    <span>Submitted</span>
-                    {sortBy === 'submittedAt' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  <button className="flex items-center gap-2" onClick={() => toggleSort('status')}>
+                    <span>Status</span>
+                    {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-dark-blue text-xs text-center">
@@ -205,6 +218,7 @@ export default function FeedbackSummaryPage() {
             <tbody>
               {sortedList.map((item, idx) => {
                 const sessionDateTime = format(parseISO(item.session.start_time), "MMM dd, yyyy 'at' hh:mm a");
+                const statusInfo = getStatusLabel(item.status);
                 return (
                   <tr
                     key={item.id}
@@ -212,12 +226,14 @@ export default function FeedbackSummaryPage() {
                       idx % 2 === 0 ? "bg-white" : "bg-soft-white-blue/10"
                     }`}
                   >
-                    {/* Session */}
+                    {/* Session Name (Topic) */}
                     <td className="px-4 py-3">
-                      <p className="text-xs font-semibold text-dark-blue">
-                        {sessionDateTime}
+                      <p className="text-sm font-semibold text-dark-blue">
+                        {item.session.topic || 'Untitled Session'}
                       </p>
-                      <p className="text-[0.7rem] text-black/60">{getModeLabel(item.session.mode)} • {item.session.location || 'N/A'}</p>
+                      <p className="text-[0.7rem] text-black/60 mt-0.5">
+                        {getModeLabel(item.session.mode)} • {item.session.location || 'N/A'}
+                      </p>
                     </td>
 
                     {/* Tutor */}
@@ -228,33 +244,21 @@ export default function FeedbackSummaryPage() {
                     {/* Course */}
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center rounded-md bg-light-light-blue/10 text-light-light-blue text-[0.65rem] font-semibold px-2 py-1 border border-light-light-blue/40">
-                        {item.session.course_code} - {item.session.course_name}
+                        {item.session.course_code}
                       </span>
+                      <p className="text-[0.7rem] text-black/60 mt-0.5">{item.session.course_name}</p>
                     </td>
 
-                    {/* Rating */}
+                    {/* Time */}
                     <td className="px-4 py-3 text-xs text-black/80">
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => {
-                          const filled = i < item.rating;
-                          return (
-                            <span
-                              key={i}
-                              className={`text-base ${
-                                filled ? "text-yellow-400" : "text-gray-300"
-                              }`}
-                            >
-                              ★
-                            </span>
-                          );
-                        })}
-                        <span className="ml-1 text-gray-700 font-medium">{item.rating}.0</span>
-                      </div>
+                      {sessionDateTime}
                     </td>
 
-                    {/* Submitted */}
-                    <td className="px-4 py-3 text-xs text-black/60">
-                      {format(parseISO(item.created_at), "MMM dd, yyyy")}
+                    {/* Status */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-md text-[0.7rem] font-semibold px-2 py-1 border ${statusInfo.color}`}>
+                        {statusInfo.label}
+                      </span>
                     </td>
 
                     {/* Actions */}

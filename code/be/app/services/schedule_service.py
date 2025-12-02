@@ -225,6 +225,56 @@ class ScheduleService:
             ) for s in slots
         ]
 
+    @staticmethod
+    async def delete_slot(slot_id: str, user: User):
+        """
+        Deletes an availability slot.
+        Only the owner tutor can delete their own slots.
+        Cannot delete slots that are already booked.
+        
+        Args:
+            slot_id: The availability slot ID to delete
+            user: The authenticated tutor user
+            
+        Raises:
+            HTTPException: If slot not found, not owned by user, or already booked
+        """
+        # Get the slot
+        slot = await AvailabilitySlot.get(slot_id)
+        if not slot:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                "Availability slot not found"
+            )
+        
+        # Get tutor profile
+        tutor_profile = await TutorProfile.find_one(TutorProfile.user.id == user.id)
+        if not tutor_profile:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "User is not a Tutor"
+            )
+        
+        # Fetch slot's tutor link to check ownership
+        await slot.fetch_link(AvailabilitySlot.tutor)
+        
+        # Check if user owns this slot
+        if slot.tutor.id != tutor_profile.id:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "You can only delete your own availability slots"
+            )
+        
+        # Check if slot is already booked
+        if slot.is_booked:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot delete a booked slot"
+            )
+        
+        # Delete the slot
+        await slot.delete()
+
     # ==========================================
     # 2. SESSION BOOKING & NEGOTIATION
     # ==========================================

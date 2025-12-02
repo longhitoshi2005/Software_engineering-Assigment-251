@@ -32,3 +32,17 @@ async def get_tutor_availability(
     Requires: Any authenticated user.
     """
     return await ScheduleService.get_slots(tutor_id, current_user)
+
+@router.delete("/{slot_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_availability_slot(
+    slot_id: str,
+    current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
+):
+    """
+    [Tutor Action] Deletes an availability slot.
+    Only the owner tutor can delete their own slots.
+    Cannot delete slots that are already booked.
+    Requires: Tutor Role.
+    """
+    await ScheduleService.delete_slot(slot_id, current_user)
+    return None

@@ -18,6 +18,7 @@ type FeedbackData = {
     tutor_name: string;
     course_code: string;
     course_name: string;
+    topic: string | null;
     start_time: string;
     end_time: string;
     mode: string;
@@ -174,6 +175,12 @@ export default function FeedbackModal({ sessionId, onClose, onSaved }: FeedbackM
             <p className="text-xs text-black/60">Tutor</p>
             <p className="font-semibold text-dark-blue">{feedback.session.tutor_name}</p>
           </div>
+          {feedback.session.topic && (
+            <div className="md:col-span-2">
+              <p className="text-xs text-black/60">Session Topic</p>
+              <p className="font-semibold text-dark-blue">{feedback.session.topic}</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-black/60">Mode & Location</p>
             <p className="text-sm text-black/80">
