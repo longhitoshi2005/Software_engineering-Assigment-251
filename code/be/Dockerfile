@@ -13,9 +13,11 @@ COPY ./app /code/app
 COPY ./.env /code/.env
 COPY ./scripts /code/scripts
 
-# Copy startup script
+# Copy startup script and sanitize line endings (handle Windows CRLF)
 COPY docker-entrypoint.sh /code/docker-entrypoint.sh
-RUN chmod +x /code/docker-entrypoint.sh
+# Ensure script has Unix line endings and is executable inside image
+RUN sed -i 's/\r$//' /code/docker-entrypoint.sh && \
+	chmod +x /code/docker-entrypoint.sh
 
 # Lệnh chạy server (Hot reload enabled)
 ENTRYPOINT ["/code/docker-entrypoint.sh"]

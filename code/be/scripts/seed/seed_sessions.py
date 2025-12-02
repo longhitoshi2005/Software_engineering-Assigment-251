@@ -84,12 +84,16 @@ async def seed_sessions():
         ).sort("+start_time").to_list()
 
         for s in slots:
+            # Normalize slot datetimes to timezone-aware UTC if they are naive
+            s_start = s.start_time if getattr(s.start_time, 'tzinfo', None) else s.start_time.replace(tzinfo=timezone.utc)
+            s_end = s.end_time if getattr(s.end_time, 'tzinfo', None) else s.end_time.replace(tzinfo=timezone.utc)
+
             # consider only future-starting slots
-            if s.start_time >= now and (s.end_time - s.start_time) >= min_duration:
-                start = s.start_time
+            if s_start >= now and (s_end - s_start) >= min_duration:
+                start = s_start
                 end = start + min_duration
-                if end > s.end_time:
-                    end = s.end_time
+                if end > s_end:
+                    end = s_end
                 return start, end
 
         # No suitable slot found: create one at requested days ahead at 09:00
