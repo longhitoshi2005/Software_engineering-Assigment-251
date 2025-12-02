@@ -23,13 +23,12 @@ async def init_db():
     client = AsyncIOMotorClient(settings.MONGODB_URL)
     
     # 2. Chọn Database
-    db_name = settings.DATABASE_NAME # VD: "tutor_system_db"
+    db_name = settings.DATABASE_NAME
     
     # 3. Khởi tạo Beanie
     await init_beanie(
         database=client[db_name],
         document_models=[
-            # Danh sách các bảng (Collection) sẽ được quản lý
             HCMUT_SSO,
             User,
             Faculty, Major, Course,

@@ -21,11 +21,11 @@ class RequestType(str, Enum):
 class SessionStatus(str, Enum):
     """Trạng thái hiện tại của phiên học (State Machine)."""
     WAITING_FOR_TUTOR = "WAITING_FOR_TUTOR"
-    WAITING_FOR_STUDENT = "WAITING_FOR_STUDENT" # Chờ phản hồi từ Student sau khi Tutor mặc cả
-    CONFIRMED = "CONFIRMED" # Đã chốt lịch, sẵn sàng diễn ra
-    REJECTED = "REJECTED"   # Tutor từ chối request
-    CANCELLED = "CANCELLED" # Hủy sau khi đã CONFIRMED
-    COMPLETED = "COMPLETED" # Đã diễn ra thành công
+    WAITING_FOR_STUDENT = "WAITING_FOR_STUDENT"     # Chờ phản hồi từ Student sau khi Tutor mặc cả
+    CONFIRMED = "CONFIRMED"                         # Đã chốt lịch, sẵn sàng diễn ra
+    REJECTED = "REJECTED"                           # Tutor từ chối request
+    CANCELLED = "CANCELLED"                         # Hủy sau khi đã CONFIRMED
+    COMPLETED = "COMPLETED"                         # Đã diễn ra thành công
 
 class ParticipationStatus(str, Enum):
     """Individual student participation status in a session."""

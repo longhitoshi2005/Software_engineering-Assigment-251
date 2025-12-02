@@ -22,14 +22,13 @@ class SessionFeedback(Document):
     - Student có 1 tuần để submit/edit
     - Sau 1 tuần tự động mark SKIPPED nếu chưa submit
     """
-    session: Link[TutorSession] # Link 1-1
+    session: Link[TutorSession]
     
-    # Denormalization: Lưu lại link Student và Tutor để query thống kê nhanh hơn
-    # thay vì phải lookup qua session
+    # Denormalization
     student: Link[StudentProfile]
     tutor: Link[TutorProfile]
     
-    rating: Optional[int] = None # 1-5 sao, None nếu chưa submit
+    rating: Optional[int] = None # 1-5 sao, None if not submitted
     comment: Optional[str] = None
     
     status: FeedbackStatus = FeedbackStatus.PENDING

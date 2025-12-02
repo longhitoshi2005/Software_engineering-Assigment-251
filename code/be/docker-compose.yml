@@ -25,7 +25,7 @@ services:
     environment:
       - MONGODB_URL=mongodb://admin:password123@db:27017
       - DATABASE_NAME=tutor_system_db
-      - SECRET_KEY=thay_doi_chuoi_nay_khi_deploy
+      - SECRET_KEY=?z95VIqZ$>4(O|U
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=1440
 

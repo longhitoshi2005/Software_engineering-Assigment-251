@@ -67,9 +67,7 @@ async def get_session_detail(
 @router.put("/{session_id}/confirm", response_model=SessionResponse)
 async def confirm_session(
     session_id: str,
-    # Thêm Body để Tutor set capacity/publicity cho session đang CONFIRM
-    confirm_details: SessionConfirmRequest = Body(...), 
-    # Chỉ Tutor mới được xác nhận
+    confirm_details: SessionConfirmRequest = Body(...),
     current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
 ):
     """[Tutor] Confirms a pending request, performs slot splitting, and sets final capacity/link."""
@@ -79,8 +77,7 @@ async def confirm_session(
 @router.put("/{session_id}/reject", response_model=SessionResponse)
 async def reject_session(
     session_id: str,
-    payload: SessionActionRequest = Body(default=None), 
-    # Chỉ Tutor mới được từ chối
+    payload: SessionActionRequest = Body(default=None),
     current_user: User = Depends(RoleChecker([UserRole.TUTOR]))
 ):
     """[Tutor] Rejects a pending request."""
@@ -91,7 +88,6 @@ async def reject_session(
 @router.put("/{session_id}/complete", response_model=SessionResponse)
 async def complete_session(
     session_id: str,
-    # Chỉ Tutor hoặc Manager mới được đánh dấu hoàn thành
     current_user: User = Depends(RoleChecker([UserRole.TUTOR, UserRole.ADMIN, UserRole.DEPT_CHAIR]))
 ):
     """[Tutor/Admin] Marks a confirmed session as COMPLETED (ready for feedback/progress reports)."""
@@ -116,10 +112,8 @@ async def propose_change(
 @router.put("/{session_id}/negotiate/{action}", response_model=SessionResponse)
 async def resolve_proposal(
     session_id: str,
-    action: str, # "accept" or "reject"
-    # Student phải cung cấp lại payload SessionConfirmRequest nếu họ chấp nhận thay đổi
+    action: str,
     confirm_details: Optional[SessionConfirmRequest] = Body(None),
-    # Chỉ Student được phản hồi
     current_user: User = Depends(RoleChecker([UserRole.STUDENT]))
 ):
     """[Student] Accepts (finalizes booking) or Rejects the Tutor's counter-proposal."""

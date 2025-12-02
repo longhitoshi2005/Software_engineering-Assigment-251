@@ -24,7 +24,6 @@ router = APIRouter(prefix="/tutors", tags=["Tutors"])
 
 # ==========================================
 # 1. MANAGEMENT API (Admin/Chair/Coord)
-# (FR-MAT.04: Manual Assignment)
 # ==========================================
 
 @router.post("/assign", response_model=AssignTutorResponse)
@@ -46,7 +45,6 @@ async def assign_tutors(
 
 # ==========================================
 # 2. DISCOVERY API (Public for Auth Users)
-# (FR-MAT.02: Manual Selection)
 # ==========================================
 
 @router.get("/", response_model=List[TutorResponse])

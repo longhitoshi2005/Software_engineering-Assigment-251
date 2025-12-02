@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function SALayout({
   children,
@@ -42,6 +43,7 @@ export default function SALayout({
       basePath: "/sa/profile",
       children: [
         { label: "My Profile", path: "/sa/profile" },
+        { label: "Switch Profile", path: "", isRoleSwitcher: true },
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -113,6 +115,11 @@ export default function SALayout({
                   {group.children.map((child) => {
                     const isChildActive = pathname === child.path;
                     const isLogout = child.label === "Logout";
+                    const isRoleSwitcher = (child as { isRoleSwitcher?: boolean }).isRoleSwitcher;
+                    
+                    if (isRoleSwitcher) {
+                      return <RoleSwitcher key="role-switcher" currentRole={Role.STUDENT_AFFAIRS} />;
+                    }
                     
                     if (isLogout) {
                       return (

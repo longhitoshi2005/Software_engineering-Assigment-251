@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 function StudentLayout({
   children,
@@ -73,6 +74,7 @@ function StudentLayout({
       basePath: "/student/profile",
       children: [
         { label: "My Profile", path: "/student/profile" },
+        { label: "Switch Profile", path: "", isRoleSwitcher: true },
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -143,6 +145,11 @@ function StudentLayout({
                   {group.children.map((child) => {
                     const isChildActive = pathname === child.path;
                     const isLogout = child.label === "Logout";
+                    const isRoleSwitcher = (child as { isRoleSwitcher?: boolean }).isRoleSwitcher;
+                    
+                    if (isRoleSwitcher) {
+                      return <RoleSwitcher key="role-switcher" currentRole={Role.STUDENT} />;
+                    }
                     
                     if (isLogout) {
                       return (

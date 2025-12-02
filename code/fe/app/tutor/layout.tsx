@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function TutorLayout({
   children,
@@ -81,6 +82,7 @@ function TutorLayoutContent({
       basePath: "/tutor/profile",
       children: [
         { label: "My Profile", path: "/tutor/profile" },
+        { label: "Switch Profile", path: "", isRoleSwitcher: true },
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -152,6 +154,11 @@ function TutorLayoutContent({
                   {group.children.map((child) => {
                     const isChildActive = pathname === child.path;
                     const isLogout = child.label === "Logout";
+                    const isRoleSwitcher = (child as { isRoleSwitcher?: boolean }).isRoleSwitcher;
+                    
+                    if (isRoleSwitcher) {
+                      return <RoleSwitcher key="role-switcher" currentRole={Role.TUTOR} />;
+                    }
                     
                     if (isLogout) {
                       return (

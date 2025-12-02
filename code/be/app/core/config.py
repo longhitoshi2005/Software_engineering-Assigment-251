@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     MONGODB_URL: str
     DATABASE_NAME: str
     
-    # Cloudinary Config (FR-INT.04)
+    # Cloudinary Config
     CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str

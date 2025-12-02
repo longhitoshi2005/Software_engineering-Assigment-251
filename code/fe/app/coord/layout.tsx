@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function CoordLayout({
   children,
@@ -50,6 +51,7 @@ export default function CoordLayout({
       basePath: "/coord/profile", 
       children: [
         { label: "My Profile", path: "/coord/profile" }, 
+        { label: "Switch Profile", path: "", isRoleSwitcher: true },
         { label: "Logout", path: "/auth/login" },
       ],
     },
@@ -118,6 +120,11 @@ export default function CoordLayout({
                   {group.children.map((child) => {
                     const isChildActive = pathname === child.path;
                     const isLogout = child.label === "Logout";
+                    const isRoleSwitcher = (child as { isRoleSwitcher?: boolean }).isRoleSwitcher;
+                    
+                    if (isRoleSwitcher) {
+                      return <RoleSwitcher key="role-switcher" currentRole={Role.COORDINATOR} />;
+                    }
                     
                     if (isLogout) {
                       return (

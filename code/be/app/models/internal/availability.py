@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Annotated, List
-from beanie import Document, Link, Indexed
+from beanie import Document, Link
 from pydantic import Field
 
 # Import local models

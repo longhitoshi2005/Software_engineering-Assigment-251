@@ -28,7 +28,7 @@ async def clean_database():
     # 1. Kết nối DB
     await init_db()
     
-    # 2. Xóa dữ liệu theo thứ tự (Con trước -> Cha sau để an toàn, dù NoSQL không bắt buộc)
+    # 2. Xóa dữ liệu theo thứ tự
     print("   - Deleting Transaction Data...")
     await SessionFeedback.delete_all()
     await ProgressRecord.delete_all()

@@ -146,7 +146,7 @@ export default function LoginPage() {
         password: password,
       };
 
-      const response: LoginResponse = await api.post("/auth/login", loginData);
+      await api.post("/auth/login", loginData);
 
       // Get user info from backend to determine role
       const userInfo = await api.get("/users/me");
@@ -193,7 +193,7 @@ export default function LoginPage() {
         localStorage.setItem('userRole', primaryRole);
         setClientRole(primaryRole);
       } catch (e) {
-        // ignore write errors in strict environments
+        console.log("error: ", e)
       }
 
       // Redirect based on assigned role
@@ -367,7 +367,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="bg-dark-blue text-white/60 text-center text-xs py-3">
-        © {new Date().getFullYear()} Tutor Support System – HCMUT
+        © {new Date().getFullYear()} Tutor Support System - HCMUT
       </footer>
     </div>
   );

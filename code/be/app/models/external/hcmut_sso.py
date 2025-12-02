@@ -45,7 +45,7 @@ class StaffStatus(str, Enum):
 
 class ContactInfo(BaseModel):
     phone_number: Optional[str] = None
-    email_edu: Annotated[str, Indexed(unique=True)]  # Must always be username + '@hcmut.edu.vn'
+    email_edu: Annotated[str, Indexed(unique=True)]  # username + '@hcmut.edu.vn'
     email_personal: Optional[str] = None
 
 class AcademicStatus(BaseModel):
@@ -61,8 +61,6 @@ class AcademicStatus(BaseModel):
     degree_level: DegreeLevel = DegreeLevel.UNDERGRADUATE
     student_status: StudentStatus = StudentStatus.STUDYING
     
-    # Giữ lại GPA tổng (nếu cần xét học bổng) hoặc có thể bỏ luôn nếu muốn private triệt để
-    # Ở đây mình bỏ GPA chi tiết, chỉ giữ training_point cho CTSV
     training_point: int = 0  
 
 class WorkInfo(BaseModel):

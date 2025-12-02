@@ -6,7 +6,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login")
 async def login(data: LoginRequest, response: Response):
-    # 1. Gọi Service lấy Token (chính là ObjectId)
+    # 1. Gọi Service lấy Token (ObjectId)
     token = await AuthService.login_and_get_token(data.username, data.password)
     
     # 2. LƯU TOKEN VÀO COOKIE

@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Role } from "@/lib/role";
 import NotificationDropdown from "@/components/NotificationDropdown";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function DeptLayout({
   children,
@@ -73,6 +74,7 @@ export default function DeptLayout({
     basePath: "/dept/profile",
     children: [
       { label: "My profile", path: "/dept/profile" },
+      { label: "Switch Profile", path: "", isRoleSwitcher: true },
       { label: "Logout", path: "/auth/login" },
     ],
   },
@@ -148,8 +150,13 @@ export default function DeptLayout({
 
                   {group.children.map((child) => {
                     const isLogout = child.label === "Logout";
+                    const isRoleSwitcher = (child as { isRoleSwitcher?: boolean }).isRoleSwitcher;
                     const childActive =
                       pathname === child.path || pathname.startsWith(child.path + "/");
+
+                    if (isRoleSwitcher) {
+                      return <RoleSwitcher key="role-switcher" currentRole={Role.DEPARTMENT_CHAIR} />;
+                    }
 
                     if (isLogout) {
                       return (

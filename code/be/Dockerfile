@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Thiết lập thư mục làm việc
 WORKDIR /code
 
-# Copy file cài đặt và cài thư viện trước (để tận dụng cache của Docker)
+# Copy file cài đặt và cài thư viện trước
 COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 

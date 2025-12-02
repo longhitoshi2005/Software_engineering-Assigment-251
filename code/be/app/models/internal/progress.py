@@ -14,8 +14,8 @@ class ProgressRecord(Document):
     tutor: Link[TutorProfile]
     student: Link[StudentProfile]
     
-    topic_covered: str             # Nội dung đã dạy
-    student_performance: str       # Nhận xét mức độ hiểu bài
+    topic_covered: str
+    student_performance: str
     next_steps: Optional[str] = None 
     
     attachment_urls: List[str] = []
