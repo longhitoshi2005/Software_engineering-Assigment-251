@@ -1,0 +1,100 @@
+enum DayName {
+enum SessionMode {
+enum SessionStatus {
+enum RequestStatus {
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  day       String
+  startTime String
+  endTime   String
+  mode      String
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id             String        @id @default(cuid())
+  studentName    String
+  studentId      String?
+  courseCode     String
+  courseTitle    String
+  scheduledStart DateTime
+  scheduledEnd   DateTime?
+  mode           String
+  location       String?
+  status         String        @default("PENDING")
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  progressLogs   ProgressLog[]
+  feedbacks      Feedback[]
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  sessionId   String?
+  session     Session? @relation(fields: [sessionId], references: [id])
+  studentName String
+  courseCode  String
+  rating      Int
+  comment     String
+  createdAt   DateTime @default(now())
+}
+
+model Profile {
+  id             String @id @default("default-profile")
+  fullName       String
+  staffId        String
+  title          String
+  department     String
+  faculty        String
+  email          String
+  phone          String?
+  personalEmail  String?
+  officeLocation String?
+  officeHours    String?
+  shortIntro     String?
+  expertise      String?
+  homepage       String?
+  googleScholar  String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+}
+
+model ProgressLog {
+  id            String   @id @default(cuid())
+  session       Session  @relation(fields: [sessionId], references: [id])
+  sessionId     String
+  understanding String?
+  engagement    String?
+  summary       String
+  nextPlan      String?
+  attachments   String?
+  submittedAt   DateTime @default(now())
+}
+
+model BookingRequest {
+  id             String   @id @default(cuid())
+  studentName    String
+  studentId      String
+  courseCode     String
+  courseTitle    String
+  topic          String?
+  preferredStart DateTime
+  preferredEnd   DateTime?
+  mode           String
+  note           String?
+  status         String   @default("NEW")
+  conflictNote   String?
+  decisionNote   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
