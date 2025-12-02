@@ -16,6 +16,7 @@ from app.models.internal.student_profile import StudentProfile
 from app.models.internal.session import TutorSession, SessionStatus, RequestType, NegotiationProposal, StudentParticipation, ParticipationStatus
 from app.models.external.course import Course
 from app.models.enums.location import LocationMode
+from app.models.internal.availability import AvailabilitySlot
 
 
 async def seed_sessions():
@@ -69,6 +70,39 @@ async def seed_sessions():
     
     now = datetime.now(timezone.utc)
     sessions = []
+
+    async def allocate_slot_for_session(tutor_profile, days_ahead: int = 3, duration_hours: int = 2):
+        """Find an existing unbooked availability slot for the tutor with sufficient length.
+        If none exists, create a new slot at the requested time window and return it.
+        Returns (start_time, end_time)
+        """
+        # prefer future slots
+        min_duration = timedelta(hours=duration_hours)
+        slots = await AvailabilitySlot.find(
+            AvailabilitySlot.tutor.id == tutor_profile.id,
+            AvailabilitySlot.is_booked == False
+        ).sort("+start_time").to_list()
+
+        for s in slots:
+            # consider only future-starting slots
+            if s.start_time >= now and (s.end_time - s.start_time) >= min_duration:
+                start = s.start_time
+                end = start + min_duration
+                if end > s.end_time:
+                    end = s.end_time
+                return start, end
+
+        # No suitable slot found: create one at requested days ahead at 09:00
+        start = (now + timedelta(days=days_ahead)).replace(hour=9, minute=0, second=0, microsecond=0)
+        end = start + min_duration
+        new_slot = AvailabilitySlot(
+            tutor=tutor_profile,
+            start_time=start,
+            end_time=end,
+            allowed_modes=[LocationMode.ONLINE]
+        )
+        await new_slot.save()
+        return start, end
     
     # Session templates for variety
     locations_online = [
@@ -159,13 +193,15 @@ async def seed_sessions():
     sessions.append(session3)
     
     # --- CONFIRMED SESSIONS (upcoming) ---
+    # Allocate a real availability slot for this confirmed session
+    s4_start, s4_end = await allocate_slot_for_session(tutor_tuan, days_ahead=4, duration_hours=2)
     session4 = TutorSession(
         tutor=tutor_tuan,
         students=[student_lan],
         course=co3005,
         topic="Design Patterns - Factory and Singleton",
-        start_time=now + timedelta(days=4, hours=10),
-        end_time=now + timedelta(days=4, hours=12),
+        start_time=s4_start,
+        end_time=s4_end,
         mode=LocationMode.CAMPUS_1,
         location="Room H6-202",
         max_capacity=1,
@@ -177,13 +213,14 @@ async def seed_sessions():
     await session4.save()
     sessions.append(session4)
     
+    s5_start, s5_end = await allocate_slot_for_session(tutor_gioi, days_ahead=6, duration_hours=2)
     session5 = TutorSession(
         tutor=tutor_gioi,
         students=[student_lan],
         course=co2003,
         topic="Advanced Tree Traversal Algorithms",
-        start_time=now + timedelta(days=6, hours=14),
-        end_time=now + timedelta(days=6, hours=16),
+        start_time=s5_start,
+        end_time=s5_end,
         mode=LocationMode.ONLINE,
         location="https://meet.google.com/algo-study",
         max_capacity=10,
@@ -196,12 +233,13 @@ async def seed_sessions():
     sessions.append(session5)
     
     # --- PENDING SESSIONS ---
+    s6_start, s6_end = await allocate_slot_for_session(tutor_tuan, days_ahead=8, duration_hours=2)
     session6 = TutorSession(
         tutor=tutor_tuan,
         students=[student_lan],
         course=co3005,
-        start_time=now + timedelta(days=8, hours=15),
-        end_time=now + timedelta(days=8, hours=17),
+        start_time=s6_start,
+        end_time=s6_end,
         mode=LocationMode.ONLINE,
         location=None,
         max_capacity=1,
@@ -214,12 +252,16 @@ async def seed_sessions():
     sessions.append(session6)
     
     # --- NEGOTIATION SESSION ---
+    # Negotiation session - ensure original and proposed times align with availability
+    s7_start, s7_end = await allocate_slot_for_session(tutor_gioi, days_ahead=9, duration_hours=2)
+    # Proposed (negotiated) time: try to allocate another slot (same day) for the tutor
+    prop_start, prop_end = await allocate_slot_for_session(tutor_gioi, days_ahead=9, duration_hours=2)
     session7 = TutorSession(
         tutor=tutor_gioi,
         students=[student_lan],
         course=co2003,
-        start_time=now + timedelta(days=9, hours=10),
-        end_time=now + timedelta(days=9, hours=12),
+        start_time=s7_start,
+        end_time=s7_end,
         mode=LocationMode.CAMPUS_1,
         location="Room H3-303",
         max_capacity=1,
@@ -228,8 +270,8 @@ async def seed_sessions():
         status=SessionStatus.WAITING_FOR_STUDENT,
         proposal=NegotiationProposal(
             new_topic="Graph Algorithms and Shortest Path",
-            new_start_time=now + timedelta(days=9, hours=14),
-            new_end_time=now + timedelta(days=9, hours=16),
+            new_start_time=prop_start,
+            new_end_time=prop_end,
             new_mode=LocationMode.ONLINE,
             new_location="https://meet.google.com/xyz-counter",
             tutor_message="Sorry, I have class in the morning. Can we do online at 2pm instead?"
@@ -240,12 +282,13 @@ async def seed_sessions():
     sessions.append(session7)
     
     # --- REJECTED SESSION ---
+    s8_start, s8_end = await allocate_slot_for_session(tutor_tuan, days_ahead=2, duration_hours=2)
     session8 = TutorSession(
         tutor=tutor_tuan,
         students=[student_lan],
         course=as1001,
-        start_time=now + timedelta(days=2, hours=8),
-        end_time=now + timedelta(days=2, hours=10),
+        start_time=s8_start,
+        end_time=s8_end,
         mode=LocationMode.CAMPUS_2,
         location="Room B1-101",
         max_capacity=1,
@@ -372,13 +415,15 @@ async def seed_sessions():
             else:
                 topic = random.choice(topics_as1001)
         
+        # Allocate a real availability slot or create one if missing
+        s_start, s_end = await allocate_slot_for_session(tutor, days_ahead=days_ahead, duration_hours=2)
         session = TutorSession(
             tutor=tutor,
             students=[student],
             course=course,
             topic=topic,
-            start_time=now + timedelta(days=days_ahead, hours=10),
-            end_time=now + timedelta(days=days_ahead, hours=12),
+            start_time=s_start,
+            end_time=s_end,
             mode=LocationMode.ONLINE,
             location="https://meet.google.com/upcoming-session" if status == SessionStatus.CONFIRMED else None,
             max_capacity=1,

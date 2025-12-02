@@ -22,10 +22,10 @@ async def init_db():
     """
     client = AsyncIOMotorClient(settings.MONGODB_URL)
     
-    # 2. Chọn Database
+    # 2. Create database
     db_name = settings.DATABASE_NAME
     
-    # 3. Khởi tạo Beanie
+    # 3. Create Beanie
     await init_beanie(
         database=client[db_name],
         document_models=[

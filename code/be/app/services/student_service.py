@@ -7,7 +7,6 @@ from beanie import PydanticObjectId, Link
 from app.models.internal.user import User
 from app.models.internal.student_profile import StudentProfile
 from app.models.internal.session import TutorSession, SessionStatus
-from app.models.enums.university_identities import UniversityIdentity
 
 # Schemas
 from app.models.schemas.student import StudentResponse, StudentUpdateRequest, StudentStatsResponse

@@ -13,7 +13,6 @@ from app.models.internal.availability import AvailabilitySlot
 from app.models.external.course import Course
 from app.models.enums.role import UserRole
 from app.models.enums.university_identities import UniversityIdentity
-from app.models.enums.location import LocationMode
 
 # Schemas
 from app.models.schemas.tutor import (

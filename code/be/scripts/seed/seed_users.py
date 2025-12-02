@@ -10,7 +10,7 @@ from app.db.mongodb import init_db
 from app.core.security import get_password_hash
 
 from app.models.external.hcmut_sso import (
-    HCMUT_SSO, UniversityIdentity, ContactInfo, WorkInfo, AcademicStatus, StudentStatus, Gender
+    HCMUT_SSO, ContactInfo, WorkInfo, AcademicStatus, StudentStatus
 )
 from app.models.external.major import Major
 from app.models.internal.user import User
@@ -18,6 +18,8 @@ from app.models.internal.tutor_profile import TutorProfile, TutorStatus, Teachin
 from app.models.internal.student_profile import StudentProfile
 from app.models.external.course import Course
 from app.models.enums.role import UserRole
+from app.models.enums.gender import Gender
+from app.models.enums.university_identities import UniversityIdentity
 
 # --- MAIN SEED USER DATA ---
 

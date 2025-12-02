@@ -8,7 +8,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_access_token(subject: str | Any, expires_delta: Optional[timedelta] = None) -> str:
     """
-    Tạo JWT Token từ User ID (Subject).
+    Create Token from User ID (Subject).
     """
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -21,8 +21,8 @@ def create_access_token(subject: str | Any, expires_delta: Optional[timedelta] =
 
 def decode_access_token(token: str) -> Optional[str]:
     """
-    Hàm truy ngược: Giải mã Token để lấy lại User ID (Subject).
-    Trả về: User ID (str) hoặc None nếu token sai/hết hạn.
+    Decode Token to gain User ID (Subject).
+    Return: User ID (str) or None if token invalid/expired.
     """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

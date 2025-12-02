@@ -3,23 +3,14 @@ from datetime import datetime
 from enum import Enum
 
 from beanie import Document, Indexed, Link
+from app.models.enums.gender import Gender
+from app.models.enums.university_identities import UniversityIdentity
 from pydantic import BaseModel, field_validator, ValidationInfo
 
 # Import Master Data
 from .major import Major 
 
 # --- ENUMS ---
-
-class UniversityIdentity(str, Enum):
-    STUDENT = "STUDENT"
-    LECTURER = "LECTURER"
-    STAFF = "STAFF"
-
-class Gender(str, Enum):
-    MALE = "Male"
-    FEMALE = "Female"
-    OTHER = "Other"
-
 class AccountStatus(str, Enum):
     ACTIVE = "Active"
     LOCKED = "Locked" 

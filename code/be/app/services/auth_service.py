@@ -1,10 +1,11 @@
 from fastapi import HTTPException, status
-from app.models.external.hcmut_sso import HCMUT_SSO, UniversityIdentity
+from app.models.external.hcmut_sso import HCMUT_SSO
 from app.models.internal.user import User
 from app.models.internal.tutor_profile import TutorProfile
 from app.models.internal.student_profile import StudentProfile
 from app.core.security import verify_password
 from app.models.enums.role import UserRole
+from app.models.enums.university_identities import UniversityIdentity
 
 class AuthService:
     @staticmethod
