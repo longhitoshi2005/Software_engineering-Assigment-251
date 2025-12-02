@@ -27,6 +27,16 @@ const roleRoutes: Record<Role, string> = {
   [Role.PROGRAM_ADMIN]: "/admin",
 };
 
+// Map backend role names to frontend Role enum
+const backendToFrontendRole: Record<string, Role> = {
+  "STUDENT": Role.STUDENT,
+  "TUTOR": Role.TUTOR,
+  "DEPT_CHAIR": Role.DEPARTMENT_CHAIR,
+  "COORD": Role.COORDINATOR,
+  "STAFF_SA": Role.STUDENT_AFFAIRS,
+  "ADMIN": Role.PROGRAM_ADMIN,
+};
+
 export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
   const router = useRouter();
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
@@ -37,7 +47,11 @@ export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
       try {
         const userInfo = await api.get("/users/me");
         if (userInfo.roles && Array.isArray(userInfo.roles)) {
-          setAvailableRoles(userInfo.roles as Role[]);
+          // Map backend roles to frontend Role enum
+          const mappedRoles = userInfo.roles
+            .map((backendRole: string) => backendToFrontendRole[backendRole])
+            .filter((role): role is Role => role !== undefined);
+          setAvailableRoles(mappedRoles);
         }
       } catch (error) {
         console.error("Failed to fetch user roles:", error);
@@ -48,7 +62,10 @@ export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
   }, []);
 
   const handleRoleSwitch = (newRole: Role) => {
-    if (newRole === currentRole) return;
+    if (newRole === currentRole) {
+      setShowRoleMenu(false);
+      return;
+    }
 
     // Update role in localStorage
     setClientRole(newRole);
@@ -56,7 +73,9 @@ export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
 
     // Navigate to the new role's default page
     const targetRoute = roleRoutes[newRole];
-    router.push(targetRoute);
+    if (targetRoute) {
+      router.push(targetRoute);
+    }
 
     setShowRoleMenu(false);
   };
@@ -67,9 +86,12 @@ export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
   }
 
   return (
-    <div className="relative group/roles">
+    <div 
+      className="relative group/roles"
+      onMouseEnter={() => setShowRoleMenu(true)}
+      onMouseLeave={() => setShowRoleMenu(false)}
+    >
       <button
-        onClick={() => setShowRoleMenu(!showRoleMenu)}
         className="block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue"
       >
         Switch Profile
@@ -77,43 +99,35 @@ export default function RoleSwitcher({ currentRole }: RoleSwitcherProps) {
 
       {/* Role submenu */}
       {showRoleMenu && (
-        <>
-          {/* Backdrop to close menu when clicking outside */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowRoleMenu(false)}
-          />
-
-          <div
-            className="absolute right-full top-0 mr-1
-                       bg-white text-dark-blue min-w-[180px]
-                       rounded-md shadow-lg border border-black/10 py-2 z-50"
-          >
-            <div className="px-3 py-1 text-xs font-semibold text-dark-blue/60 border-b border-black/10 mb-1">
-              Switch to:
-            </div>
-            {availableRoles.map((role) => {
-              const isCurrent = role === currentRole;
-              return (
-                <button
-                  key={role}
-                  onClick={() => handleRoleSwitch(role)}
-                  disabled={isCurrent}
-                  className={`block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition ${
-                    isCurrent
-                      ? "text-dark-blue/40 bg-gray-100 cursor-not-allowed"
-                      : "text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue cursor-pointer"
-                  }`}
-                >
-                  {roleLabels[role]}
-                  {isCurrent && (
-                    <span className="ml-2 text-xs text-dark-blue/30">(current)</span>
-                  )}
-                </button>
-              );
-            })}
+        <div
+          className="absolute top-0 bg-white text-dark-blue min-w-44 rounded-md shadow-lg border border-black/10 py-2 z-50"
+          onMouseEnter={() => setShowRoleMenu(true)}
+          onMouseLeave={() => setShowRoleMenu(false)}
+        >
+          <div className="px-3 py-1 text-xs font-semibold text-dark-blue/60 border-b border-black/10 mb-1">
+            Switch to:
           </div>
-        </>
+          {availableRoles.map((role) => {
+            const isCurrent = role === currentRole;
+            return (
+              <button
+                key={role}
+                onClick={() => handleRoleSwitch(role)}
+                disabled={isCurrent}
+                className={`block w-full text-left px-4 py-2 text-sm whitespace-nowrap transition ${
+                  isCurrent
+                    ? "text-dark-blue/40 bg-gray-100 cursor-not-allowed"
+                    : "text-dark-blue/80 hover:text-dark-blue hover:bg-soft-white-blue cursor-pointer"
+                }`}
+              >
+                {roleLabels[role]}
+                {isCurrent && (
+                  <span className="ml-2 text-xs text-dark-blue/30">(current)</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

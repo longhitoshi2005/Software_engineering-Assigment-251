@@ -24,7 +24,7 @@ export default function LoginPage() {
     { name: "Lan Tran", username: "lan.tran", roles: ["STUDENT"], password: "123" },
     { name: "Gioi", username: "student_gioi", roles: ["STUDENT", "TUTOR"], password: "123" },
     { name: "Tuan Pham (Tutor)", username: "tuan.pham", roles: ["TUTOR"], password: "123" },
-    { name: "Head CSE (Admin)", username: "head.cse", roles: ["DEPARTMENT_CHAIR"], password: "123" },
+    { name: "Head CSE (Admin)", username: "head.cse", roles: ["DEPARTMENT_CHAIR", "TUTOR"], password: "123" },
     { name: "An Nguyen", username: "an.nguyen", roles: ["STUDENT"], password: "123" },
     { name: "Binh Tran", username: "binh.tran", roles: ["STUDENT"], password: "123" },
     { name: "Cuong Le", username: "cuong.le", roles: ["STUDENT"], password: "123" },
