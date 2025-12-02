@@ -1,32 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { swalSuccess, swalError } from "@/lib/swal";
+import type { ProgressLogStatus } from "@/lib/tutorData";
+
+type SessionStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
 
 type TutorSession = {
   id: string;
   studentName: string;
-  course: string;
-  time: string;
-  topic: string;
-  status: "completed" | "pending" | "in-progress";
+  studentId?: string | null;
+  courseCode: string;
+  courseTitle: string;
+  scheduledStart: string;
+  scheduledEnd?: string | null;
+  mode: "ONLINE" | "OFFLINE" | "HYBRID";
+  status: SessionStatus;
 };
-import { TUTOR_SESSIONS } from "@/lib/mocks";
-import { swalSuccess, swalError } from "@/lib/swal"; // ⬅️ dùng cho báo lỗi file (nếu có)
 
-const mockSessions: TutorSession[] = TUTOR_SESSIONS as TutorSession[];
+const SESSION_STATUS_BADGE: Record<SessionStatus, string> = {
+  COMPLETED: "bg-emerald-50 text-emerald-700",
+  CONFIRMED: "bg-light-blue/20 text-light-heavy-blue",
+  PENDING: "bg-amber-50 text-amber-700",
+  CANCELLED: "bg-slate-100 text-slate-600",
+};
+
+const formatDateTime = (iso: string) => {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return iso;
+  return dt.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
+const DEFAULT_UNDERSTANDING = "Good – can apply";
+const DEFAULT_ENGAGEMENT = "Highly engaged";
+const DEFAULT_SUMMARY = "Student could trace recursion stack correctly by the end. Needs follow-up on pointer-to-pointer usage.";
 
 export default function TutorProgressLogPage() {
-  const [selectedSessionId, setSelectedSessionId] = useState<string>(mockSessions[0].id);
+  const apiKey = process.env.NEXT_PUBLIC_TUTOR_API_KEY ?? "";
+  const baseHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (apiKey) headers["x-api-key"] = apiKey;
+    return headers;
+  }, [apiKey]);
 
-  const selectedSession = mockSessions.find((s) => s.id === selectedSessionId)!;
+  const [sessions, setSessions] = useState<TutorSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const handleSaveDraft = async () => {
-    await swalSuccess("Draft saved", "Your progress log draft has been saved.");
-  };
-
-  const handleSubmit = async () => {
-    await swalSuccess("Progress Log submitted", "Your progress log has been submitted.");
-  };
+  const [understanding, setUnderstanding] = useState<string>(DEFAULT_UNDERSTANDING);
+  const [engagement, setEngagement] = useState<string>(DEFAULT_ENGAGEMENT);
+  const [summary, setSummary] = useState<string>(DEFAULT_SUMMARY);
+  const [nextPlan, setNextPlan] = useState<string>("");
+  const [submitting, setSubmitting] = useState<ProgressLogStatus | null>(null);
+  const [submittedSessions, setSubmittedSessions] = useState<Record<string, boolean>>({});
 
   /* =======================
      ATTACHMENTS (ONLY EDITED PART)
@@ -82,6 +112,133 @@ export default function TutorProgressLogPage() {
   };
   /* ======================= */
 
+  const fetchSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    setSessionError(null);
+    try {
+      const query = new URLSearchParams({ upcomingOnly: "true", limit: "20" }).toString();
+      const res = await fetch(`/api/tutor/sessions?${query}`, { headers: baseHeaders });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Unable to load sessions");
+      }
+      const data: TutorSession[] = json.data ?? [];
+      setSessions(data);
+      if (data.length > 0) {
+        setSelectedSessionId((prev) => prev ?? data[0].id);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load sessions";
+      setSessionError(message);
+      setSessions([]);
+      setSelectedSessionId(null);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [baseHeaders]);
+
+  useEffect(() => {
+    void fetchSessions();
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    if (sessions.length === 0) {
+      setSelectedSessionId(null);
+      return;
+    }
+    setSelectedSessionId((prev) => {
+      if (!prev) return sessions[0].id;
+      const exists = sessions.some((sess) => sess.id === prev);
+      return exists ? prev : sessions[0].id;
+    });
+  }, [sessions]);
+
+  const selectedSession = selectedSessionId
+    ? sessions.find((s) => s.id === selectedSessionId) ?? null
+    : null;
+
+  const resetForm = () => {
+    setUnderstanding(DEFAULT_UNDERSTANDING);
+    setEngagement(DEFAULT_ENGAGEMENT);
+    setSummary(DEFAULT_SUMMARY);
+    setNextPlan("");
+    setAttachments([]);
+  };
+
+  const submitLog = useCallback(
+    async (status: ProgressLogStatus) => {
+      if (!selectedSession) {
+        await swalError?.("No session selected", "Please choose a session before logging.");
+        return;
+      }
+
+      if (status === "SUBMITTED" && !summary.trim()) {
+        try {
+          await swalError?.("Summary required", "Please write a session summary before submitting.");
+        } catch {
+          alert("Please write a session summary before submitting.");
+        }
+        return;
+      }
+
+      setSubmitting(status);
+      try {
+        const formData = new FormData();
+        formData.append("sessionId", selectedSession.id);
+        formData.append("summary", summary.trim() || "Draft in progress");
+        if (nextPlan.trim()) formData.append("nextPlan", nextPlan.trim());
+        if (understanding) formData.append("understanding", understanding);
+        if (engagement) formData.append("engagement", engagement);
+        formData.append("status", status);
+
+        attachments.forEach((file) => {
+          formData.append("attachment", file);
+        });
+
+        const headers: HeadersInit | undefined = apiKey ? { "x-api-key": apiKey } : undefined;
+
+        const res = await fetch("/api/tutor/progress-log", {
+          method: "POST",
+          headers,
+          body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || "Unable to save progress log");
+        }
+
+        if (status === "SUBMITTED") {
+          await swalSuccess?.(
+            "Progress log submitted",
+            "Your progress log has been submitted successfully."
+          );
+          setSubmittedSessions((prev) => ({ ...prev, [selectedSession.id]: true }));
+        } else {
+          await swalSuccess?.("Draft saved", "Your draft has been saved locally.");
+        }
+
+        if (status === "SUBMITTED") {
+          resetForm();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unable to save progress log";
+        try {
+          await swalError?.("Failed", message);
+        } catch {
+          alert(message);
+        }
+      } finally {
+        setSubmitting(null);
+      }
+    },
+    [apiKey, attachments, engagement, nextPlan, selectedSession, summary, understanding]
+  );
+
+  const handleSaveDraft = () => submitLog("DRAFT");
+  const handleSubmit = () => submitLog("SUBMITTED");
+
+  const selectedIsSubmitted = selectedSession ? submittedSessions[selectedSession.id] ?? false : false;
+
   return (
     <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8 space-y-8">
       {/* HEADER */}
@@ -101,86 +258,122 @@ export default function TutorProgressLogPage() {
             Sessions to log
           </div>
           <div className="bg-white rounded-lg border border-black/5 divide-y divide-black/5">
-            {mockSessions.map((sess) => {
+            {loadingSessions && (
+              <div className="px-3 py-4 text-sm text-black/50">Loading sessions…</div>
+            )}
+            {!loadingSessions && sessions.length === 0 && (
+              <div className="px-3 py-4 text-sm text-black/50">
+                {sessionError || "No sessions require logging right now."}
+              </div>
+            )}
+            {sessions.map((sess) => {
               const active = sess.id === selectedSessionId;
+              const isSubmitted = submittedSessions[sess.id] ?? false;
+              const statusLabel = sess.status.charAt(0).toUpperCase() + sess.status.slice(1).toLowerCase();
+              const badgeClass = SESSION_STATUS_BADGE[sess.status] ?? "bg-slate-100 text-slate-600";
+              const buttonBase = active
+                ? "bg-soft-white-blue/80 border-l-4 border-l-light-heavy-blue"
+                : "hover:bg-soft-white-blue/40";
+              const submittedClass = isSubmitted
+                ? "bg-light-heavy-blue text-white hover:bg-light-heavy-blue"
+                : "";
               return (
                 <button
                   key={sess.id}
                   onClick={() => setSelectedSessionId(sess.id)}
-                  className={`w-full text-left px-3 py-3 transition ${
-                    active
-                      ? "bg-soft-white-blue/80 border-l-4 border-l-light-heavy-blue"
-                      : "hover:bg-soft-white-blue/40"
-                  }`}
+                  className={`w-full text-left px-3 py-3 transition ${buttonBase} ${submittedClass}`.trim()}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-dark-blue">
-                      {sess.studentName.split("·")[0]}
+                    <span className={`text-sm font-medium ${isSubmitted ? "text-white" : "text-dark-blue"}`}>
+                      {sess.studentName}
                     </span>
                     <span
                       className={`text-[0.65rem] px-2 py-1 rounded-full ${
-                        sess.status === "completed"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : sess.status === "in-progress"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-slate-100 text-slate-700"
+                        isSubmitted ? "bg-white/20 text-white" : badgeClass
                       }`}
                     >
-                      {sess.status === "completed"
-                        ? "Completed"
-                        : sess.status === "in-progress"
-                        ? "In progress"
-                        : "Pending"}
+                      {statusLabel}
                     </span>
                   </div>
-                  <div className="text-[0.65rem] text-black/50">{sess.course}</div>
-                  <div className="text-[0.6rem] text-black/40 mt-1 line-clamp-1">{sess.time}</div>
+                  <div className={`text-[0.65rem] ${isSubmitted ? "text-white/80" : "text-black/50"}`}>
+                    {sess.courseTitle}
+                  </div>
+                  <div className={`text-[0.6rem] mt-1 line-clamp-1 ${isSubmitted ? "text-white/80" : "text-black/40"}`}>
+                    {formatDateTime(sess.scheduledStart)}
+                  </div>
+                  {isSubmitted && (
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-[0.6rem] font-semibold text-emerald-800">
+                      Submitted
+                    </div>
+                  )}
                 </button>
               );
             })}
           </div>
 
           <div className="text-[0.65rem] text-black/40">
-            Tip: this list is usually filtered to &ldquo;sessions in last 48h&rdquo; hoặc
-            &ldquo;sessions without log&rdquo;.
+            Tip: this list is filtered to upcoming sessions that still need a progress log.
           </div>
         </aside>
 
         {/* RIGHT: form */}
         <main className="flex-1 space-y-5">
           {/* session summary */}
-          <div className="bg-white rounded-lg border border-black/5 p-4 space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-semibold text-dark-blue">
-                  {selectedSession.studentName}
-                </h2>
-                <p className="text-xs text-black/60">{selectedSession.course}</p>
+          {selectedSession ? (
+            <div className="bg-white rounded-lg border border-black/5 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-dark-blue">
+                    {selectedSession.studentName}
+                  </h2>
+                  <p className="text-xs text-black/60">
+                    {selectedSession.courseTitle} ({selectedSession.courseCode})
+                  </p>
+                </div>
+                <div className="text-[0.65rem] text-black/50 text-right">
+                  Session ID: <span className="font-mono">{selectedSession.id}</span>
+                  <br />
+                  Mode: {selectedSession.mode}
+                </div>
               </div>
-              <div className="text-[0.65rem] text-black/50 text-right">
-                Session ID: <span className="font-mono">{selectedSession.id}</span>
+              <div className="text-xs text-black/60">
+                Scheduled: <span className="text-black/80">{formatDateTime(selectedSession.scheduledStart)}</span>
+                {selectedSession.scheduledEnd && (
+                  <>
+                    <br />Ends: <span className="text-black/80">{formatDateTime(selectedSession.scheduledEnd)}</span>
+                  </>
+                )}
+              </div>
+              <div className="rounded-md bg-amber-50 border border-amber-100 px-3 py-2 text-[0.65rem] text-amber-700">
+                Once submitted, this log is visible to the coordinator and department. You can edit
+                within 24 hours.
               </div>
             </div>
-            <div className="text-xs text-black/60">
-              {selectedSession.time}
-              <br />
-              Topic: <span className="text-black/80">{selectedSession.topic}</span>
+          ) : (
+            <div className="bg-white rounded-lg border border-black/5 p-4 text-sm text-black/60">
+              Select a session to start logging progress.
             </div>
-            <div className="rounded-md bg-amber-50 border border-amber-100 px-3 py-2 text-[0.65rem] text-amber-700">
-              Once submitted, this log is visible to coordinator / department. You can edit within
-              24h.
-            </div>
-          </div>
+          )}
 
           {/* form */}
-          <form className="bg-white rounded-lg border border-black/5 p-4 space-y-4">
+          <form
+            className="bg-white rounded-lg border border-black/5 p-4 space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* understanding */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-dark-blue">
                   Understanding level
                 </label>
-                <select className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40">
+                <select
+                  value={understanding}
+                  onChange={(e) => setUnderstanding(e.target.value)}
+                  className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40"
+                >
                   <option>Excellent – fully grasped</option>
                   <option>Good – can apply</option>
                   <option>Fair – needs more practice</option>
@@ -194,7 +387,11 @@ export default function TutorProgressLogPage() {
               {/* engagement */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold text-dark-blue">Engagement</label>
-                <select className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40">
+                <select
+                  value={engagement}
+                  onChange={(e) => setEngagement(e.target.value)}
+                  className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40"
+                >
                   <option>Highly engaged</option>
                   <option>Moderate</option>
                   <option>Passive</option>
@@ -211,7 +408,8 @@ export default function TutorProgressLogPage() {
               <label className="text-xs font-semibold text-dark-blue">Session summary</label>
               <textarea
                 rows={3}
-                defaultValue="Student could trace recursion stack correctly by the end. Needs follow-up on pointer-to-pointer usage."
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
                 className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40"
               />
               <p className="text-[0.65rem] text-black/40">
@@ -227,6 +425,8 @@ export default function TutorProgressLogPage() {
               <textarea
                 rows={2}
                 placeholder="Example: practice recursion problems 7–10, review memory model next session."
+                value={nextPlan}
+                onChange={(e) => setNextPlan(e.target.value)}
                 className="border border-black/10 rounded-md px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-light-blue/40"
               />
             </div>
@@ -295,16 +495,38 @@ export default function TutorProgressLogPage() {
                 <button
                   type="button"
                   onClick={() => handleSaveDraft()}
-                  className="px-3 py-2 rounded-md text-sm bg-white border border-light-blue/40 text-light-blue hover:bg-soft-white-blue/60"
+                  disabled={submitting !== null || selectedIsSubmitted}
+                  className={`px-3 py-2 rounded-md text-sm transition ${
+                    selectedIsSubmitted
+                      ? "bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-not-allowed"
+                      : submitting === "DRAFT"
+                      ? "bg-light-blue/20 text-light-heavy-blue opacity-70 border border-light-blue/40"
+                      : "bg-white text-light-blue border border-light-blue/40 hover:bg-soft-white-blue/60"
+                  }`}
                 >
-                  Save draft
+                  {selectedIsSubmitted
+                    ? "Submitted"
+                    : submitting === "DRAFT"
+                    ? "Saving…"
+                    : "Save draft"}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSubmit()}
-                  className="px-3 py-2 rounded-md text-sm bg-light-heavy-blue text-white hover:bg-light-blue transition"
+                  disabled={submitting !== null || selectedIsSubmitted}
+                  className={`px-3 py-2 rounded-md text-sm text-white transition ${
+                    selectedIsSubmitted
+                      ? "bg-emerald-600 hover:bg-emerald-600"
+                      : submitting === "SUBMITTED"
+                      ? "bg-light-heavy-blue opacity-70"
+                      : "bg-light-heavy-blue hover:bg-light-blue"
+                  }`}
                 >
-                  Submit progress log
+                  {selectedIsSubmitted
+                    ? "Submitted"
+                    : submitting === "SUBMITTED"
+                    ? "Submitting…"
+                    : "Submit progress log"}
                 </button>
               </div>
             </div>

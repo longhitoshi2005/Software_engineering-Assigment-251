@@ -3,10 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import api from "@/lib/api";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { Role } from "@/lib/role";
-import NotificationDropdown from "@/components/NotificationDropdown";
 
 export default function TutorLayout({
   children,
@@ -16,40 +12,11 @@ export default function TutorLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleLogout = async () => {
-    try {
-      // Call backend logout API to clear cookie
-      await api.post("/auth/logout");
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      // Clear user session
-      localStorage.removeItem("userEmail");
-      localStorage.removeItem("username");
-      localStorage.removeItem("userRole");
-      // Redirect to login
-      router.push("/auth/login");
-    }
+  const handleLogout = () => {
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userRole");
+    router.push("/auth/login");
   };
-
-  return (
-    <ProtectedRoute requiredRoles={[Role.TUTOR]}>
-      <TutorLayoutContent pathname={pathname} handleLogout={handleLogout}>
-        {children}
-      </TutorLayoutContent>
-    </ProtectedRoute>
-  );
-}
-
-function TutorLayoutContent({
-  children,
-  pathname,
-  handleLogout,
-}: {
-  children: React.ReactNode;
-  pathname: string;
-  handleLogout: () => void;
-}) {
 
   const navSections = [
     {
@@ -57,7 +24,7 @@ function TutorLayoutContent({
       basePath: "/tutor/dashboard",
       children: [
         { label: "Overview", path: "/tutor/dashboard" },
-        { label: "Sessions", path: "/tutor/sessions" },
+        { label: "Sessions Today", path: "/tutor/sessions-today" },
       ],
     },
     {
@@ -91,8 +58,7 @@ function TutorLayoutContent({
   );
 
   return (
-    <ProtectedRoute requiredRoles={[Role.TUTOR]}>
-      <div className="min-h-screen flex flex-col bg-soft-white-blue">
+    <div className="min-h-screen bg-soft-white-blue">
       <nav className="w-full bg-dark-blue h-[60px] flex items-center justify-between px-6 md:px-10">
         <div
           className="flex items-center gap-3 cursor-pointer"
@@ -118,7 +84,7 @@ function TutorLayoutContent({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 h-full">
+        <div className="hidden md:flex items-center gap-6 h-full mr-8">
           {navSections.map((group) => {
             const isActive = activeParent?.label === group.label;
             return (
@@ -183,14 +149,10 @@ function TutorLayoutContent({
               </div>
             );
           })}
-
-          {/* Notification Bell */}
-          <NotificationDropdown />
         </div>
       </nav>
 
       <main className="w-full">{children}</main>
     </div>
-    </ProtectedRoute>
   );
 }

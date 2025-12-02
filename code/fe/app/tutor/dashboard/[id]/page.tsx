@@ -1,61 +1,140 @@
 "use client";
 
-import { TUTOR_DASH_FEEDBACKS } from "@/lib/mocks";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type FeedbackItem = {
   id: string;
-  student: string;
-  subject: string;
-  rating: number;    // 1..5
+  sessionId?: string | null;
+  studentName: string;
+  courseCode: string;
+  rating: number;
   comment: string;
-  date: string;      // chuỗi mock sẵn để tránh hydration mismatch
+  createdAt: string;
+};
+
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
+
+const formatDateTime = (iso: string) => {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return iso;
+  return dt.toLocaleString(undefined, DATE_FORMAT);
+};
+
+const sentimentOf = (rating: number) =>
+  rating >= 4 ? "positive" : rating <= 2 ? "negative" : "neutral";
+
+const Stars = ({ rating }: { rating: number }) => (
+  <span aria-label={`${rating} out of 5 stars`} title={`${rating}/5`}>
+    {Array.from({ length: 5 }).map((_, i) => (i < rating ? "★" : "☆"))}
+  </span>
+);
+
+const SentimentBadge = ({ rating }: { rating: number }) => {
+  const sentiment = sentimentOf(rating);
+  const text = sentiment === "positive" ? "Positive" : sentiment === "negative" ? "Negative" : "Neutral";
+  const className =
+    sentiment === "positive"
+      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+      : sentiment === "negative"
+      ? "bg-red-50 text-red-700 border border-red-200"
+      : "bg-amber-50 text-amber-700 border border-amber-200";
+  return (
+    <span className={`px-2 py-[3px] rounded-md text-[0.7rem] font-semibold ${className}`}>
+      {text}
+    </span>
+  );
 };
 
 export default function TutorFeedbackDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const list = (TUTOR_DASH_FEEDBACKS as FeedbackItem[]) ?? [];
-  const idx  = list.findIndex((f) => String(f.id) === String(id));
-  const item = idx >= 0 ? list[idx] : undefined;
+  const apiKey = process.env.NEXT_PUBLIC_TUTOR_API_KEY ?? "";
+  const baseHeaders = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (apiKey) headers["x-api-key"] = apiKey;
+    return headers;
+  }, [apiKey]);
 
-  // --- UI helpers ---
-  const Stars = ({ n }: { n: number }) => (
-    <span aria-label={`${n} out of 5 stars`} title={`${n}/5`}>
-      {Array.from({ length: 5 }).map((_, i) => (i < n ? "★" : "☆"))}
-    </span>
-  );
+  const [feedback, setFeedback] = useState<FeedbackItem | null>(null);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const sentimentOf = (rating: number) =>
-    rating >= 4 ? "positive" : rating <= 2 ? "negative" : "neutral";
+  const loadData = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
 
-  const SentimentBadge = ({ rating }: { rating: number }) => {
-    const s = sentimentOf(rating);
-    const cls =
-      s === "positive"
-        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-        : s === "negative"
-        ? "bg-red-50 text-red-700 border border-red-200"
-        : "bg-amber-50 text-amber-700 border border-amber-200";
-    const text = s === "positive" ? "Positive" : s === "negative" ? "Negative" : "Neutral";
-    return (
-      <span className={`px-2 py-[3px] rounded-md text-[0.7rem] font-semibold ${cls}`}>
-        {text}
-      </span>
-    );
-  };
+    const detailPromise = fetch(`/api/tutor/feedbacks/${id}`, {
+      headers: { ...baseHeaders },
+    });
 
-  if (!item) {
+    const listPromise = fetch(`/api/tutor/feedbacks`, {
+      headers: { ...baseHeaders },
+    }).catch(() => null);
+
+    try {
+      const [detailRes, listRes] = await Promise.all([detailPromise, listPromise]);
+
+      const detailJson = await detailRes.json();
+      if (!detailRes.ok || !detailJson?.success) {
+        throw new Error(detailJson?.error || "Feedback not found");
+      }
+      const detailData: FeedbackItem = detailJson.data;
+      setFeedback(detailData);
+
+      if (listRes && listRes.ok) {
+        const listJson = await listRes.json();
+        if (listJson?.success && Array.isArray(listJson.data)) {
+          const listData: FeedbackItem[] = listJson.data;
+          if (!listData.find((item: FeedbackItem) => item.id === detailData.id)) {
+            listData.push(detailData);
+          }
+          setFeedbacks(listData);
+        }
+      } else {
+        setFeedbacks([detailData]);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load feedback";
+      setError(message);
+      setFeedback(null);
+      setFeedbacks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, baseHeaders]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const currentIndex = useMemo(() => feedbacks.findIndex((f) => f.id === id), [feedbacks, id]);
+  const prev = currentIndex > 0 ? feedbacks[currentIndex - 1] : null;
+  const next = currentIndex >= 0 && currentIndex < feedbacks.length - 1 ? feedbacks[currentIndex + 1] : null;
+
+  if (loading) {
     return (
       <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8">
-        <div className="max-w-3xl mx-auto bg-white border border-black/5 rounded-xl p-6">
-          <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Feedback not found</h1>
-          <p className="text-sm text-black/60 mt-2">
-            ID: <code>{id}</code>
+        <div className="max-w-3xl mx-auto bg-white border border-black/5 rounded-xl p-6 text-sm text-black/60">
+          Loading feedback…
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !feedback) {
+    return (
+      <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8">
+        <div className="max-w-3xl mx-auto bg-white border border-black/5 rounded-xl p-6 space-y-3">
+          <h1 className="text-lg md:text-xl font-semibold text-dark-blue">Feedback not available</h1>
+          <p className="text-sm text-black/60">
+            {error ? error : "The requested feedback could not be found."}
           </p>
-          <div className="mt-4 flex gap-2">
+          <div className="flex gap-2">
             <button
               onClick={() => router.back()}
               className="rounded-md border px-3 py-1.5 text-sm hover:bg-soft-white-blue transition"
@@ -74,31 +153,19 @@ export default function TutorFeedbackDetailPage() {
     );
   }
 
-  const prev = idx > 0 ? list[idx - 1] : null;
-  const next = idx < list.length - 1 ? list[idx + 1] : null;
-
-  const handlePrint = () => {
-    if (typeof window !== "undefined") window.print();
-  };
-
   return (
     <div className="min-h-[calc(100vh-60px)] bg-soft-white-blue px-4 py-6 md:px-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Breadcrumb */}
         <nav className="text-xs text-black/60">
           <Link href="/tutor/dashboard" className="hover:underline">
             Tutor Dashboard
-          </Link>{" "}
-          / <span className="text-black/70">Feedback</span> /{" "}
-          <span className="text-black/80 font-medium">{item.id}</span>
+          </Link>{" "}/ <span className="text-black/70">Feedback</span> /{" "}
+          <span className="text-black/80 font-medium">{feedback.id}</span>
         </nav>
 
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-semibold text-dark-blue">
-              Feedback Detail
-            </h1>
+            <h1 className="text-xl md:text-2xl font-semibold text-dark-blue">Feedback Detail</h1>
             <p className="text-sm text-black/60">
               View student feedback, rating breakdown, and related information.
             </p>
@@ -113,50 +180,45 @@ export default function TutorFeedbackDetailPage() {
           </div>
         </div>
 
-        {/* Summary Card */}
         <section className="bg-white border border-black/5 rounded-xl p-6 space-y-4">
-          {/* Top row: title + rating */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="space-y-1">
               <div className="text-sm text-black/60">Feedback ID</div>
-              <div className="text-base font-semibold text-dark-blue">{item.id}</div>
+              <div className="text-base font-semibold text-dark-blue">{feedback.id}</div>
             </div>
             <div className="text-right">
               <div className="text-sm text-black/60">Rating</div>
               <div className="text-base font-bold text-dark-blue flex items-center gap-2 justify-end">
-                <Stars n={Number(item.rating) || 0} />
-                <span className="text-sm text-black/70">({item.rating}/5)</span>
-                <SentimentBadge rating={Number(item.rating) || 0} />
+                <Stars rating={Number(feedback.rating) || 0} />
+                <span className="text-sm text-black/70">({feedback.rating}/5)</span>
+                <SentimentBadge rating={Number(feedback.rating) || 0} />
               </div>
             </div>
           </div>
 
-          {/* Meta grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             <div>
               <div className="text-sm text-black/60">Student</div>
-              <div className="text-base font-medium">{item.student}</div>
+              <div className="text-base font-medium">{feedback.studentName}</div>
             </div>
             <div>
-              <div className="text-sm text-black/60">Subject</div>
-              <div className="text-base font-medium">{item.subject}</div>
+              <div className="text-sm text-black/60">Course</div>
+              <div className="text-base font-medium">{feedback.courseCode}</div>
             </div>
             <div>
-              <div className="text-sm text-black/60">Date</div>
-              <div className="text-base font-medium">{item.date}</div>
+              <div className="text-sm text-black/60">Received</div>
+              <div className="text-base font-medium">{formatDateTime(feedback.createdAt)}</div>
             </div>
           </div>
 
-          {/* Comment */}
           <div className="pt-2">
             <div className="text-sm text-black/60 mb-1">Comment</div>
             <div className="text-[0.95rem] text-black/80 leading-relaxed bg-soft-white-blue/40 border border-soft-white-blue rounded-lg p-3">
-              {item.comment}
+              {feedback.comment}
             </div>
           </div>
         </section>
 
-        {/* Related navigation */}
         <section className="bg-white border border-black/5 rounded-xl p-4 flex items-center justify-between">
           <div className="text-sm text-black/60">Browse feedback</div>
           <div className="flex gap-2">
