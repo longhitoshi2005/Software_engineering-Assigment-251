@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
 import { parseUTC } from "@/lib/dateUtils";
 import { BASE_API_URL } from "@/config/env";
 
@@ -81,7 +80,6 @@ const getTypeLabel = (type?: string) => {
 
 // --- Component Logic ---
 const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComplete }) => {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   // Card UI state
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -110,6 +108,19 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
     new_max_capacity: 1,
     new_is_public: false,
   });
+  // Which fields the tutor wants to change
+  const [negotiateEnabled, setNegotiateEnabled] = useState({
+    topic: false,
+    date: false,
+    start: false,
+    end: false,
+    mode: false,
+    type: false,
+  });
+  // Separate date/time pieces for better UX
+  const [negotiateDate, setNegotiateDate] = useState("");
+  const [negotiateStartTime, setNegotiateStartTime] = useState("");
+  const [negotiateEndTime, setNegotiateEndTime] = useState("");
 
   // --- Fetch Detail Data ---
   const fetchDetailData = async () => {
@@ -135,19 +146,31 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
         final_location_link: data.location || "",
       });
       
-      const localStartTime = toZonedTime(data.start_time, timeZone).toISOString().substring(0, 16);
-      const localEndTime = toZonedTime(data.end_time, timeZone).toISOString().substring(0, 16);
+      // Parse UTC times properly and convert to local time for display/editing
+      const startTimeUTC = parseUTC(data.start_time);
+      const endTimeUTC = parseUTC(data.end_time);
+      
+      // Format for local timezone display (this will show correct local time)
+      const localStartDate = format(startTimeUTC, 'yyyy-MM-dd');
+      const localStartTime = format(startTimeUTC, 'HH:mm');
+      const localEndTime = format(endTimeUTC, 'HH:mm');
       
       setNegotiatePayload({
         new_topic: "",
-        new_start_time: localStartTime,
-        new_end_time: localEndTime,
+        new_start_time: startTimeUTC.toISOString(),
+        new_end_time: endTimeUTC.toISOString(),
         new_mode: data.mode,
         new_location: data.location || "",
         message: "",
         new_max_capacity: defaultCapacity,
         new_is_public: isPublicRequest,
       });
+      // initialize date/time pieces with LOCAL TIME VALUES
+      setNegotiateDate(localStartDate);
+      setNegotiateStartTime(localStartTime);
+      setNegotiateEndTime(localEndTime);
+      // reset enabled flags
+      setNegotiateEnabled({ topic: false, date: false, start: false, end: false, mode: false, type: false });
       
     } catch (error) {
       console.error("Failed to load detail:", error);
@@ -251,27 +274,71 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
       alert("A message is required for proposing a change.");
       return;
     }
-    
+    // Session topic is required for a proposal — include it always
+    if (!negotiatePayload.new_topic || negotiatePayload.new_topic.trim() === "") {
+      alert("Please provide a session topic for this proposal.");
+      return;
+    }
+    // Build payload only including fields that tutor enabled
+    const payload: { message: string; new_topic: string; [key: string]: string | number | boolean | undefined } = { message: negotiatePayload.message, new_topic: negotiatePayload.new_topic };
+
+    // Date/time composition
+    let finalStart = null;
+    let finalEnd = null;
+    try {
+      if (negotiateEnabled.date || negotiateEnabled.start || negotiateEnabled.end) {
+        // Use the current form values (which are in local time)
+        const baseDate = negotiateDate;
+        const startTime = negotiateStartTime;
+        const endTime = negotiateEndTime;
+        
+        // Create Date objects in LOCAL TIME, which will be correctly converted to UTC by toISOString()
+        finalStart = new Date(`${baseDate}T${startTime}:00`);
+        finalEnd = new Date(`${baseDate}T${endTime}:00`);
+
+        if (finalEnd <= finalStart) {
+          alert("End time must be after start time.");
+          return;
+        }
+
+        // Convert to UTC ISO strings for the API
+        payload.new_start_time = finalStart.toISOString();
+        payload.new_end_time = finalEnd.toISOString();
+      }
+    } catch (err) {
+      console.error("Invalid date/time", err);
+      alert("Invalid date/time selection");
+      return;
+    }
+
+    if (negotiateEnabled.mode) {
+      payload.new_mode = negotiatePayload.new_mode;
+    }
+
+    if (negotiateEnabled.type) {
+      // map UI boolean to new_is_public/new_max_capacity if needed
+      payload.new_is_public = negotiatePayload.new_is_public;
+      if (negotiatePayload.new_max_capacity) payload.new_max_capacity = Number(negotiatePayload.new_max_capacity);
+    }
+
     try {
       const response = await fetch(`${BASE_API_URL}/sessions/${sessionMiniData.id}/negotiate`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...negotiatePayload,
-          new_start_time: new Date(negotiatePayload.new_start_time).toISOString(),
-          new_end_time: new Date(negotiatePayload.new_end_time).toISOString(),
-          new_max_capacity: negotiatePayload.new_max_capacity ? Number(negotiatePayload.new_max_capacity) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
-      
-      if (!response.ok) throw new Error("Failed to propose negotiation");
-      
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: 'Failed to propose negotiation' }));
+        throw new Error(err.detail || 'Failed to propose negotiation');
+      }
+
       alert("Negotiation proposed successfully.");
       closeAllModals();
     } catch (error) {
       console.error(error);
-      alert("Failed to propose negotiation.");
+      alert(error instanceof Error ? error.message : "Failed to propose negotiation.");
     }
   };
 
@@ -484,100 +551,143 @@ const RequestCard: React.FC<RequestCardProps> = ({ sessionMiniData, onActionComp
               <div>
                 <h2>Propose Counter-Offer</h2>
                 <form onSubmit={(e) => { e.preventDefault(); handleNegotiate(); }}>
-                  <label style={labelStyle}>
-                    Session Topic/Name (Required):
-                    <input
-                      type="text"
-                      value={negotiatePayload.new_topic}
-                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_topic: e.target.value })}
-                      required
-                      style={inputStyle}
-                      placeholder="e.g., Introduction to React Hooks"
-                    />
-                  </label>
-                  
-                  <label style={labelStyle}>
-                    New Start Time:
-                    <input
-                      type="datetime-local"
-                      value={negotiatePayload.new_start_time}
-                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_start_time: e.target.value })}
-                      required
-                      style={inputStyle}
-                    />
-                  </label>
-                  
-                  <label style={labelStyle}>
-                    New End Time:
-                    <input
-                      type="datetime-local"
-                      value={negotiatePayload.new_end_time}
-                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_end_time: e.target.value })}
-                      required
-                      style={inputStyle}
-                    />
-                  </label>
-                  
-                  <label style={labelStyle}>
-                    New Mode:
-                    <select
-                      value={negotiatePayload.new_mode}
-                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_mode: e.target.value })}
-                      style={inputStyle}
-                    >
-                      <option value="ONLINE">Online</option>
-                      <option value="CAMPUS_1">Campus 1</option>
-                      <option value="CAMPUS_2">Campus 2</option>
-                    </select>
-                  </label>
-                  
-                  {/* Request Type Change */}
-                  <label style={labelStyle}>
-                    Request New Session Type:
-                    <select
-                      value={negotiatePayload.new_is_public ? 'PUBLIC_GROUP' : 'ONE_ON_ONE'}
-                      onChange={(e) => {
-                        const isPublic = e.target.value === 'PUBLIC_GROUP';
-                        setNegotiatePayload({ 
-                          ...negotiatePayload, 
-                          new_is_public: isPublic,
-                          new_max_capacity: isPublic ? (negotiatePayload.new_max_capacity || 5) : 1
-                        });
-                      }}
-                      style={inputStyle}
-                    >
-                      <option value="ONE_ON_ONE">One-On-One</option>
-                      <option value="PUBLIC_GROUP">Public Group</option>
-                    </select>
-                  </label>
-                  
-                  {/* Show max capacity if requesting public group */}
-                  {negotiatePayload.new_is_public && (
-                    <label style={labelStyle}>
-                      Proposed Max Capacity:
+                  <div className="font-medium">
+                    Session Topic/Name*
                       <input
-                        type="number"
-                        min={2}
-                        value={negotiatePayload.new_max_capacity || 5}
-                        onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_max_capacity: Number(e.target.value) })}
+                        type="text"
+                        value={negotiatePayload.new_topic}
+                        onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_topic: e.target.value })}
                         style={inputStyle}
+                        placeholder="e.g., Introduction to React Hooks"
                       />
-                    </label>
-                  )}
-                  
-                  <label style={labelStyle}>
-                    Message (Required):
-                    <textarea
-                      value={negotiatePayload.message}
-                      onChange={(e) => setNegotiatePayload({ ...negotiatePayload, message: e.target.value })}
-                      required
-                      style={{ ...inputStyle, minHeight: '80px' }}
-                      placeholder="Explain why you're proposing these changes..."
-                    />
-                  </label>
-                  
-                  <button type="submit" style={submitButtonStyle}>Submit Proposal</button>
-                  <button type="button" onClick={closeActionModal} style={cancelButtonStyle}>Cancel</button>
+                  </div>
+                  <p className="font-medium">
+                    What you want to change?
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginLeft: '8px' }}>
+                    {/* Left: checklist */}
+                    <div>
+                      <label style={labelStyle}>
+                        <input type="checkbox" checked={negotiateEnabled.date} onChange={(e) => setNegotiateEnabled({ ...negotiateEnabled, date: e.target.checked })} />{' '}
+                        Date 
+                        (current {format(parseUTC(detailData.start_time), 'dd/MM/yyyy')})
+                      </label>
+
+                      <label style={labelStyle}>
+                        <input type="checkbox" checked={negotiateEnabled.start} onChange={(e) => setNegotiateEnabled({ ...negotiateEnabled, start: e.target.checked })} />{' '}
+                        Start-time (current {format(parseUTC(detailData.start_time), 'HH:mm')})
+                      </label>
+
+                      <label style={labelStyle}>
+                        <input type="checkbox" checked={negotiateEnabled.end} onChange={(e) => setNegotiateEnabled({ ...negotiateEnabled, end: e.target.checked })} />{' '}
+                        End-time (current {format(parseUTC(detailData.end_time), 'HH:mm')})
+                      </label>
+
+                      <label style={labelStyle}>
+                        <input type="checkbox" checked={negotiateEnabled.mode} onChange={(e) => setNegotiateEnabled({ ...negotiateEnabled, mode: e.target.checked })} />{' '}
+                        Mode (current {getModeLabel(detailData.mode)})
+                      </label>
+
+                      <label style={labelStyle}>
+                        <input type="checkbox" checked={negotiateEnabled.type} onChange={(e) => setNegotiateEnabled({ ...negotiateEnabled, type: e.target.checked })} />{' '}
+                        Type (current {getTypeLabel(detailData.session_request_type)})
+                      </label>
+
+                      <label style={labelStyle}>
+                        Message*:
+                        <textarea
+                          value={negotiatePayload.message}
+                          onChange={(e) => setNegotiatePayload({ ...negotiatePayload, message: e.target.value })}
+                          required
+                          style={{ ...inputStyle, minHeight: '80px' }}
+                          placeholder="Explain why you're proposing these changes..."
+                        />
+                      </label>
+                    </div>
+
+                    {/* Right: inputs shown when checkbox is checked */}
+                    <div>
+                      {/* Date input */}
+                      {negotiateEnabled.date && (
+                        <label style={labelStyle}>
+                          New Date:
+                          <input
+                            type="date"
+                            value={negotiateDate}
+                            onChange={(e) => setNegotiateDate(e.target.value)}
+                            style={inputStyle}
+                            placeholder={detailData ? format(parseUTC(detailData.start_time), 'yyyy-MM-dd') : ''}
+                          />
+                        </label>
+                      )}
+
+                      {/* Start time */}
+                      {negotiateEnabled.start && (
+                        <label style={labelStyle}>
+                          New Start Time:
+                          <input
+                            type="time"
+                            value={negotiateStartTime}
+                            onChange={(e) => setNegotiateStartTime(e.target.value)}
+                            style={inputStyle}
+                            placeholder={detailData ? format(parseUTC(detailData.start_time), 'HH:mm') : ''}
+                          />
+                        </label>
+                      )}
+
+                      {/* End time */}
+                      {negotiateEnabled.end && (
+                        <label style={labelStyle}>
+                          New End Time:
+                          <input
+                            type="time"
+                            value={negotiateEndTime}
+                            onChange={(e) => setNegotiateEndTime(e.target.value)}
+                            style={inputStyle}
+                            placeholder={detailData ? format(parseUTC(detailData.end_time), 'HH:mm') : ''}
+                          />
+                        </label>
+                      )}
+
+                      {/* Mode */}
+                      {negotiateEnabled.mode && (
+                        <label style={labelStyle}>
+                          New Mode:
+                          <select value={negotiatePayload.new_mode} onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_mode: e.target.value })} style={inputStyle}>
+                            <option value="ONLINE">Online</option>
+                            <option value="CAMPUS_1">Campus 1</option>
+                            <option value="CAMPUS_2">Campus 2</option>
+                          </select>
+                        </label>
+                      )}
+
+                      {/* Type */}
+                      {negotiateEnabled.type && (
+                        <label style={labelStyle}>
+                          New Type:
+                          <select value={negotiatePayload.new_is_public ? 'PUBLIC_GROUP' : 'ONE_ON_ONE'} onChange={(e) => {
+                            const isPublic = e.target.value === 'PUBLIC_GROUP';
+                            setNegotiatePayload({ ...negotiatePayload, new_is_public: isPublic, new_max_capacity: isPublic ? (negotiatePayload.new_max_capacity || 5) : 1 });
+                          }} style={inputStyle}>
+                            <option value="ONE_ON_ONE">One-On-One</option>
+                            <option value="PUBLIC_GROUP">Public Group</option>
+                          </select>
+                        </label>
+                      )}
+
+                      {negotiateEnabled.type && negotiatePayload.new_is_public && (
+                        <label style={labelStyle}>
+                          Proposed Max Capacity:
+                          <input type="number" min={2} value={negotiatePayload.new_max_capacity || 5} onChange={(e) => setNegotiatePayload({ ...negotiatePayload, new_max_capacity: Number(e.target.value) })} style={inputStyle} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                    <button type="submit" style={submitButtonStyle}>Submit Proposal</button>
+                    <button type="button" onClick={closeActionModal} style={cancelButtonStyle}>Cancel</button>
+                  </div>
                 </form>
               </div>
             )}
@@ -630,7 +740,7 @@ const closeButtonStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   display: 'block',
   marginBottom: '15px',
-  fontWeight: 'bold'
+  fontWeight: 'medium'
 };
 
 const inputStyle: React.CSSProperties = {

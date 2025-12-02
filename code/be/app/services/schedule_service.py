@@ -394,10 +394,12 @@ class ScheduleService:
         proposed_end = payload.new_end_time or session.end_time
         
         # Check if tutor has any session (any status except REJECTED/CANCELLED) in that time
+        # Exclude sessions that are REJECTED or CANCELLED when checking overlap
         overlap_check = await TutorSession.find_one(
             TutorSession.tutor.id == session.tutor.ref.id,
             TutorSession.id != session.id,
-            TutorSession.status.nin([SessionStatus.REJECTED, SessionStatus.CANCELLED]),
+            TutorSession.status != SessionStatus.REJECTED,
+            TutorSession.status != SessionStatus.CANCELLED,
             TutorSession.start_time < proposed_end,
             TutorSession.end_time > proposed_start
         )
@@ -1003,6 +1005,8 @@ class ScheduleService:
             course_code=session.course.code,
             course_name=session.course.name,
             topic=session.topic,
+            # Include the original student note (booking request) so UI can show it
+            note=session.note,
             start_time=session.start_time,
             end_time=session.end_time,
             mode=session.mode,
@@ -1239,6 +1243,7 @@ class ScheduleService:
             tutor_name=session.tutor.user.full_name,
             course_code=session.course.code,
             course_name=session.course.name,
+            note=session.note,
             topic=session.topic,
             start_time=session.start_time,
             end_time=session.end_time,
